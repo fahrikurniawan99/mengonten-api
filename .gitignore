@@ -1,0 +1,27 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Go
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+vendor/
+
+# Swagger docs (generated)
+docs/
+
+# Logs
+*.log

@@ -8,12 +8,15 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Email     string    `gorm:"uniqueIndex;not null" json:"email"`
-	Username  string    `gorm:"uniqueIndex;not null" json:"username"`
-	Password  string    `gorm:"not null" json:"-"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Email             string     `gorm:"uniqueIndex;not null" json:"email"`
+	Username          string     `gorm:"uniqueIndex;not null" json:"username"`
+	Password          string     `gorm:"not null" json:"-"`
+	IsVerified        bool       `gorm:"default:false" json:"is_verified"`
+	VerificationToken string     `gorm:"index" json:"-"`
+	VerifiedAt        *time.Time `json:"verified_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 func (User) TableName() string {

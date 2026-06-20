@@ -37,12 +37,15 @@ func main() {
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)
 
+	resendConfig := config.InitResend()
+	emailSender := worker.NewEmailSender(resendConfig)
+
 	gin.SetMode(os.Getenv("GIN_MODE"))
 	r := gin.Default()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	routes.RegisterRoutes(r, db, youtubeProcessor)
+	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender)
 
 	port := os.Getenv("PORT")
 	if port == "" {

@@ -47,6 +47,13 @@ definitions:
       username:
         type: string
     type: object
+  routes.VerifyEmailRequest:
+    properties:
+      token:
+        type: string
+    required:
+    - token
+    type: object
   routes.YouTubeVideoResponse:
     properties:
       genre:
@@ -161,6 +168,32 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
       summary: Register new user
+      tags:
+      - Auth
+  /api/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Verify user email dengan token dari email
+      parameters:
+      - description: Verification token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified successfully
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid or expired token
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Verify email address
       tags:
       - Auth
   /api/profile:

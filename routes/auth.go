@@ -12,6 +12,7 @@ import (
 	"mengonten-api/config"
 	"mengonten-api/models"
 	"mengonten-api/utils"
+	"mengonten-api/worker"
 )
 
 type RegisterRequest struct {
@@ -47,7 +48,7 @@ type UserResponse struct {
 // @Failure 409 {object} utils.Response "Email or username already exists"
 // @Failure 500 {object} utils.Response "Server error"
 // @Router /api/auth/register [post]
-func Register(db *gorm.DB) gin.HandlerFunc {
+func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RegisterRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -67,10 +68,13 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		verificationToken := uuid.New().String()
+
 		user := models.User{
-			Email:    req.Email,
-			Username: req.Username,
-			Password: string(hashedPassword),
+			Email:             req.Email,
+			Username:          req.Username,
+			Password:          string(hashedPassword),
+			VerificationToken: verificationToken,
 		}
 
 		if err := db.Create(&user).Error; err != nil {
@@ -78,15 +82,11 @@ func Register(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		token := generateToken(user.ID)
-		utils.SuccessResponse(c, http.StatusCreated, "User registered successfully", AuthResponse{
-			Token: token,
-			User: UserResponse{
-				ID:       user.ID,
-				Email:    user.Email,
-				Username: user.Username,
-			},
-		})
+		if emailSender != nil {
+			go emailSender.SendVerificationEmail(user.Email, user.Username, verificationToken)
+		}
+
+		utils.SuccessResponse(c, http.StatusCreated, "User registered. Please check your email for verification link.", nil)
 	}
 }
 
@@ -117,6 +117,11 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
 			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
+			return
+		}
+
+		if !user.IsVerified {
+			utils.ErrorResponse(c, http.StatusForbidden, "Email not verified. Please check your inbox.")
 			return
 		}
 
@@ -182,4 +187,51 @@ func generateToken(userID uuid.UUID) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, _ := token.SignedString([]byte(jwtConfig.Secret))
 	return tokenString
+}
+
+type VerifyEmailRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+// @Summary Verify email address
+// @Description Verify user email dengan token dari email
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body VerifyEmailRequest true "Verification token"
+// @Success 200 {object} utils.Response "Email verified successfully"
+// @Failure 400 {object} utils.Response "Invalid or expired token"
+// @Router /api/auth/verify-email [post]
+func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req VerifyEmailRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var user models.User
+		if err := db.Where("verification_token = ?", req.Token).First(&user).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid or expired verification token")
+			return
+		}
+
+		if user.IsVerified {
+			utils.SuccessResponse(c, http.StatusOK, "Email already verified", nil)
+			return
+		}
+
+		now := time.Now()
+		db.Model(&user).Updates(map[string]interface{}{
+			"is_verified":         true,
+			"verification_token":  "",
+			"verified_at":         &now,
+		})
+
+		if emailSender != nil {
+			go emailSender.SendVerificationEmail(user.Email, user.Username, "")
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully. You can now login.", nil)
+	}
 }

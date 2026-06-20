@@ -7,12 +7,13 @@ import (
 	"mengonten-api/worker"
 )
 
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender) {
 	auth := r.Group("/api/auth")
 	{
-		auth.POST("/register", Register(db))
+		auth.POST("/register", Register(db, emailSender))
 		auth.POST("/login", Login(db))
 		auth.POST("/logout", Logout)
+		auth.POST("/verify-email", VerifyEmail(db, emailSender))
 	}
 
 	protected := r.Group("/api")

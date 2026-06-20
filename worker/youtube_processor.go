@@ -115,6 +115,8 @@ func (yp *YouTubeProcessor) ProcessYouTubeVideo(db *gorm.DB, videoID uuid.UUID) 
 	job.Progress = 100
 	db.Model(&job).Updates(job)
 
+	yp.cleanupTempFiles(video.LocalFilePath)
+
 	log.Printf("YouTube video %s processing completed successfully", video.ID)
 }
 
@@ -198,6 +200,8 @@ func (yp *YouTubeProcessor) createAndUploadClips(db *gorm.DB, video *models.YouT
 			} else {
 				segment.ClipURL = clipURL
 				segment.Status = "uploaded"
+				os.Remove(clipPath)
+				log.Printf("Local clip deleted after successful upload: %s", clipPath)
 			}
 		}
 
@@ -222,6 +226,30 @@ func (yp *YouTubeProcessor) updateJobError(db *gorm.DB, job *models.ProcessingJo
 	db.Model(&video).Update("status", "failed")
 
 	log.Printf("YouTube processing job %s failed: %s", job.ID, fullError)
+}
+
+func (yp *YouTubeProcessor) cleanupTempFiles(videoPath string) {
+	if videoPath == "" {
+		return
+	}
+
+	if err := os.Remove(videoPath); err != nil {
+		log.Printf("Failed to delete temp video: %v", err)
+	} else {
+		log.Printf("Temp video deleted: %s", videoPath)
+	}
+
+	audioPath := filepath.Join(yp.TempDir, "audio.mp3")
+	if err := os.Remove(audioPath); err == nil {
+		log.Printf("Temp audio deleted: %s", audioPath)
+	}
+
+	transcriptFiles, _ := filepath.Glob(filepath.Join(yp.TempDir, "scenedetect_*.txt"))
+	for _, f := range transcriptFiles {
+		os.Remove(f)
+	}
+
+	log.Printf("Temp files cleaned up for video %s", filepath.Base(videoPath))
 }
 
 func timePtr(t time.Time) *time.Time {

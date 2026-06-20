@@ -111,6 +111,15 @@ definitions:
     required:
     - youtube_url
     type: object
+  routes.SuspendRequest:
+    properties:
+      expires_at:
+        type: string
+      reason:
+        type: string
+    required:
+    - reason
+    type: object
   routes.UpdateBankAccountRequest:
     properties:
       account_name:
@@ -170,11 +179,19 @@ definitions:
     type: object
   routes.UserResponse:
     properties:
+      account_status:
+        type: string
       email:
         type: string
       id:
         type: string
+      is_verified:
+        type: boolean
+      role:
+        type: string
       username:
+        type: string
+      warning_message:
         type: string
     type: object
   routes.VerifyEmailRequest:
@@ -183,6 +200,13 @@ definitions:
         type: string
     required:
     - token
+    type: object
+  routes.WarnRequest:
+    properties:
+      message:
+        type: string
+    required:
+    - message
     type: object
   routes.YouTubeVideoResponse:
     properties:
@@ -601,6 +625,48 @@ paths:
       summary: Get user by ID (admin)
       tags:
       - Admin
+  /api/admin/users/{user_id}/deactivate:
+    put:
+      description: Nonaktifkan akun user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deactivated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Deactivate user (admin)
+      tags:
+      - Admin
+  /api/admin/users/{user_id}/reactivate:
+    put:
+      description: Aktifkan kembali akun user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User reactivated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Reactivate user (admin)
+      tags:
+      - Admin
   /api/admin/users/{user_id}/role:
     put:
       consumes:
@@ -632,6 +698,64 @@ paths:
       security:
       - Bearer: []
       summary: Update user role (admin)
+      tags:
+      - Admin
+  /api/admin/users/{user_id}/suspend:
+    put:
+      consumes:
+      - application/json
+      description: Tangguhkan akun user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Suspend data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.SuspendRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User suspended
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Suspend user (admin)
+      tags:
+      - Admin
+  /api/admin/users/{user_id}/warn:
+    put:
+      consumes:
+      - application/json
+      description: Kirim peringatan ke user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Warning message
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.WarnRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Warning sent
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Warn user (admin)
       tags:
       - Admin
   /api/auth/login:

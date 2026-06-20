@@ -32,9 +32,13 @@ type AuthResponse struct {
 }
 
 type UserResponse struct {
-	ID       uuid.UUID `json:"id"`
-	Email    string    `json:"email"`
-	Username string    `json:"username"`
+	ID             uuid.UUID `json:"id"`
+	Email          string    `json:"email"`
+	Username       string    `json:"username"`
+	Role           string    `json:"role"`
+	AccountStatus  string    `json:"account_status"`
+	WarningMessage string    `json:"warning_message,omitempty"`
+	IsVerified     bool      `json:"is_verified"`
 }
 
 // @Summary Register new user
@@ -131,9 +135,13 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 		utils.SuccessResponse(c, http.StatusOK, "Login successful", AuthResponse{
 			Token: token,
 			User: UserResponse{
-				ID:       user.ID,
-				Email:    user.Email,
-				Username: user.Username,
+				ID:             user.ID,
+				Email:          user.Email,
+				Username:       user.Username,
+				Role:           user.Role,
+				AccountStatus:  user.AccountStatus,
+				WarningMessage: user.WarningMessage,
+				IsVerified:     user.IsVerified,
 			},
 		})
 	}
@@ -172,9 +180,13 @@ func GetProfile(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Profile retrieved", UserResponse{
-			ID:       user.ID,
-			Email:    user.Email,
-			Username: user.Username,
+			ID:             user.ID,
+			Email:          user.Email,
+			Username:       user.Username,
+			Role:           user.Role,
+			AccountStatus:  user.AccountStatus,
+			WarningMessage: user.WarningMessage,
+			IsVerified:     user.IsVerified,
 		})
 	}
 }

@@ -637,6 +637,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/users/{user_id}/deactivate": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Nonaktifkan akun user - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Deactivate user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User deactivated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{user_id}/reactivate": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Aktifkan kembali akun user - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Reactivate user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User reactivated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/users/{user_id}/role": {
             "put": {
                 "security": [
@@ -682,6 +750,98 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{user_id}/suspend": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Tangguhkan akun user - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Suspend user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Suspend data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.SuspendRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User suspended",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/users/{user_id}/warn": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Kirim peringatan ke user - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Warn user (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Warning message",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.WarnRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Warning sent",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1570,6 +1730,20 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.SuspendRequest": {
+            "type": "object",
+            "required": [
+                "reason"
+            ],
+            "properties": {
+                "expires_at": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.UpdateBankAccountRequest": {
             "type": "object",
             "properties": {
@@ -1658,13 +1832,25 @@ const docTemplate = `{
         "routes.UserResponse": {
             "type": "object",
             "properties": {
+                "account_status": {
+                    "type": "string"
+                },
                 "email": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
+                "is_verified": {
+                    "type": "boolean"
+                },
+                "role": {
+                    "type": "string"
+                },
                 "username": {
+                    "type": "string"
+                },
+                "warning_message": {
                     "type": "string"
                 }
             }
@@ -1676,6 +1862,17 @@ const docTemplate = `{
             ],
             "properties": {
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "routes.WarnRequest": {
+            "type": "object",
+            "required": [
+                "message"
+            ],
+            "properties": {
+                "message": {
                     "type": "string"
                 }
             }

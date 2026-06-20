@@ -13,6 +13,11 @@ type User struct {
 	Username          string     `gorm:"uniqueIndex;not null" json:"username"`
 	Password          string     `gorm:"not null" json:"-"`
 	Role              string     `gorm:"default:'user';not null" json:"role"`
+	AccountStatus     string     `gorm:"default:'active';not null" json:"account_status"`
+	SuspendReason     string     `gorm:"type:text" json:"suspend_reason"`
+	SuspendExpiresAt  *time.Time `json:"suspend_expires_at"`
+	WarningMessage    string     `gorm:"type:text" json:"warning_message"`
+	WarningCount      int        `gorm:"default:0" json:"warning_count"`
 	IsVerified        bool       `gorm:"default:false" json:"is_verified"`
 	VerificationToken string     `gorm:"index" json:"-"`
 	TokenExpiresAt    *time.Time `json:"-"`

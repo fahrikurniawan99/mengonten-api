@@ -1,11 +1,19 @@
 package routes
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"net/http"
+	"path/filepath"
+	"strings"
 
+	"github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"mengonten-api/config"
 	"mengonten-api/models"
 	"mengonten-api/utils"
 	"mengonten-api/worker"
@@ -150,4 +158,79 @@ func GetProcessingJobStatus(db *gorm.DB) gin.HandlerFunc {
 			"error":    job.Error,
 		})
 	}
+}
+
+// @Summary Delete video segment/clip
+// @Description Delete segment dari database dan Cloudinary
+// @Tags YouTube
+// @Produce json
+// @Security Bearer
+// @Param segment_id path string true "Segment ID"
+// @Success 200 {object} utils.Response "Segment deleted"
+// @Failure 404 {object} utils.Response "Segment not found"
+// @Router /api/youtube/segments/{segment_id} [delete]
+func DeleteVideoSegment(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		segmentID := c.Param("segment_id")
+		parsedSegmentID, err := uuid.Parse(segmentID)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid segment ID")
+			return
+		}
+
+		var segment models.VideoSegment
+		if err := db.First(&segment, parsedSegmentID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Segment not found")
+			return
+		}
+
+		if segment.ClipURL != "" {
+			if err := deleteFromCloudinary(segment.ClipURL); err != nil {
+				log.Printf("Failed to delete from Cloudinary: %v", err)
+			} else {
+				log.Printf("Deleted from Cloudinary: %s", segment.ClipURL)
+			}
+		}
+
+		if err := db.Delete(&segment).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete segment")
+			return
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Segment deleted successfully", nil)
+	}
+}
+
+func deleteFromCloudinary(url string) error {
+	if url == "" {
+		return nil
+	}
+
+	externalAPIs := config.InitExternalAPIs()
+	if externalAPIs.CloudinaryName == "" {
+		return fmt.Errorf("cloudinary not configured")
+	}
+
+	parts := strings.Split(url, "/")
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid Cloudinary URL")
+	}
+
+	publicID := parts[len(parts)-1]
+	publicID = strings.TrimSuffix(publicID, filepath.Ext(publicID))
+
+	folderParts := parts[3 : len(parts)-1]
+	folder := strings.Join(folderParts, "/")
+	fullPublicID := folder + "/" + publicID
+
+	cld, err := cloudinary.NewFromURL(fmt.Sprintf("cloudinary://%s:%s@%s",
+		externalAPIs.CloudinaryKey, externalAPIs.CloudinarySecret, externalAPIs.CloudinaryName))
+	if err != nil {
+		return fmt.Errorf("cloudinary init error: %v", err)
+	}
+
+	_, err = cld.Upload.Destroy(context.Background(), uploader.DestroyParams{
+		PublicID: fullPublicID,
+	})
+	return err
 }

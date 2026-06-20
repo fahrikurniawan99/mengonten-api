@@ -1,0 +1,299 @@
+definitions:
+  routes.AuthResponse:
+    properties:
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/routes.UserResponse'
+    type: object
+  routes.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  routes.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  routes.SubmitYouTubeRequest:
+    properties:
+      youtube_url:
+        type: string
+    required:
+    - youtube_url
+    type: object
+  routes.UserResponse:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      username:
+        type: string
+    type: object
+  routes.YouTubeVideoResponse:
+    properties:
+      genre:
+        type: string
+      id:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+      youtube_url:
+        type: string
+    type: object
+  utils.Response:
+    properties:
+      data: {}
+      message:
+        type: string
+      status:
+        type: boolean
+    type: object
+info:
+  contact: {}
+  description: API Documentation
+  title: Mengonten API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password, returns JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Invalid email or password
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: User login
+      tags:
+      - Auth
+  /api/auth/logout:
+    post:
+      description: Logout user (clears session)
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: User logout
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create new user account with email, username, and password
+      parameters:
+      - description: Registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Email or username already exists
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Register new user
+      tags:
+      - Auth
+  /api/profile:
+    get:
+      description: Retrieve authenticated user profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile retrieved
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.UserResponse'
+              type: object
+        "401":
+          description: User not authenticated
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get user profile
+      tags:
+      - Auth
+  /api/youtube/{video_id}:
+    get:
+      description: Get YouTube video info dan list generated clips
+      parameters:
+      - description: Video ID
+        in: path
+        name: video_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video details
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get video details dan segments
+      tags:
+      - YouTube
+  /api/youtube/jobs/{job_id}:
+    get:
+      description: Check status processing YouTube video
+      parameters:
+      - description: Job ID
+        in: path
+        name: job_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job status
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get processing job status
+      tags:
+      - YouTube
+  /api/youtube/segments/{segment_id}:
+    delete:
+      description: Delete segment dari database dan Cloudinary
+      parameters:
+      - description: Segment ID
+        in: path
+        name: segment_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Segment deleted
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: Segment not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Delete video segment/clip
+      tags:
+      - YouTube
+  /api/youtube/submit:
+    post:
+      consumes:
+      - application/json
+      description: Submit YouTube URL untuk di-download, analyze, dan auto-clip
+      parameters:
+      - description: YouTube URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.SubmitYouTubeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Video submitted
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.YouTubeVideoResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Submit YouTube video untuk auto-clipping
+      tags:
+      - YouTube
+securityDefinitions:
+  Bearer:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

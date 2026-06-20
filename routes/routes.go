@@ -22,5 +22,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		protected.POST("/youtube/submit", SubmitYouTubeVideo(db, youtubeProcessor))
 		protected.GET("/youtube/:video_id", GetYouTubeVideo(db))
 		protected.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
+		protected.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
 	}
 }

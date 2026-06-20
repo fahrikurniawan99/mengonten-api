@@ -21,10 +21,15 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	user.Use(middleware.AuthMiddleware())
 	{
 		user.GET("/profile", GetProfile(db))
-		user.POST("/youtube/submit", SubmitYouTubeVideo(db, youtubeProcessor))
+		user.POST("/youtube/submit", middleware.RequireActiveSubscription(db), SubmitYouTubeVideo(db, youtubeProcessor))
 		user.GET("/youtube/:video_id", GetYouTubeVideo(db))
 		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
 		user.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
+
+		user.POST("/transactions", CreateTransaction(db))
+		user.GET("/transactions", GetMyTransactions(db))
+		user.GET("/subscription/check", CheckActiveSubscription(db))
+		user.GET("/subscription/history", GetSubscriptionHistory(db))
 	}
 
 	r.GET("/api/bank-accounts", GetActiveBankAccounts(db))
@@ -48,5 +53,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		admin.POST("/subscription-plans", CreatePlan(db))
 		admin.PUT("/subscription-plans/:plan_id", UpdatePlan(db))
 		admin.DELETE("/subscription-plans/:plan_id", DeletePlan(db))
+
+		admin.GET("/transactions", GetAllTransactions(db))
+		admin.PUT("/transactions/:transaction_id/status", UpdateTransactionStatus(db))
 	}
 }

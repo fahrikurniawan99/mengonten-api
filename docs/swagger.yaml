@@ -48,6 +48,16 @@ definitions:
     - price
     - type
     type: object
+  routes.CreateTransactionRequest:
+    properties:
+      bank_account_id:
+        type: string
+      subscription_plan_id:
+        type: string
+    required:
+    - bank_account_id
+    - subscription_plan_id
+    type: object
   routes.LoginRequest:
     properties:
       email:
@@ -132,6 +142,17 @@ definitions:
         type: string
     required:
     - role
+    type: object
+  routes.UpdateTransactionStatusRequest:
+    properties:
+      status:
+        enum:
+        - paid
+        - expired
+        - cancelled
+        type: string
+    required:
+    - status
     type: object
   routes.UserResponse:
     properties:
@@ -350,6 +371,51 @@ paths:
       summary: Update subscription plan (admin)
       tags:
       - Subscription Plan
+  /api/admin/transactions:
+    get:
+      description: List semua transaksi - admin only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: All transactions
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get all transactions (admin)
+      tags:
+      - Admin Transaction
+  /api/admin/transactions/{transaction_id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update status transaksi - admin only. Jika paid, otomatis buat
+        subscription
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      - description: New status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateTransactionStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction updated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update transaction status (admin)
+      tags:
+      - Admin Transaction
   /api/admin/users:
     get:
       description: List semua users - admin only
@@ -650,6 +716,74 @@ paths:
       summary: Get active subscription plans (public)
       tags:
       - Subscription Plan
+  /api/subscription/check:
+    get:
+      description: Cek apakah user masih punya langganan aktif
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription status
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Check active subscription
+      tags:
+      - Subscription
+  /api/subscription/history:
+    get:
+      description: History langganan yang sudah di-order user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription history
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get subscription history
+      tags:
+      - Subscription
+  /api/transactions:
+    get:
+      description: List transaksi milik user sendiri
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: My transactions
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get my transactions (user)
+      tags:
+      - Transaction
+    post:
+      consumes:
+      - application/json
+      description: Buat transaksi baru untuk langganan
+      parameters:
+      - description: Transaction data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreateTransactionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Transaction created
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Create transaction (user)
+      tags:
+      - Transaction
   /api/youtube/{video_id}:
     get:
       description: Get YouTube video info dan list generated clips

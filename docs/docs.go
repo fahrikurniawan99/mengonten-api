@@ -295,6 +295,77 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua transaksi - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Transaction"
+                ],
+                "summary": "Get all transactions (admin)",
+                "responses": {
+                    "200": {
+                        "description": "All transactions",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/transactions/{transaction_id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update status transaksi - admin only. Jika paid, otomatis buat subscription",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Transaction"
+                ],
+                "summary": "Update transaction status (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "transaction_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New status",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.UpdateTransactionStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Transaction updated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/users": {
             "get": {
                 "security": [
@@ -776,6 +847,118 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/subscription/check": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Cek apakah user masih punya langganan aktif",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription"
+                ],
+                "summary": "Check active subscription",
+                "responses": {
+                    "200": {
+                        "description": "Subscription status",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/subscription/history": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "History langganan yang sudah di-order user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription"
+                ],
+                "summary": "Get subscription history",
+                "responses": {
+                    "200": {
+                        "description": "Subscription history",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List transaksi milik user sendiri",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Get my transactions (user)",
+                "responses": {
+                    "200": {
+                        "description": "My transactions",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Buat transaksi baru untuk langganan",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Create transaction (user)",
+                "parameters": [
+                    {
+                        "description": "Transaction data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.CreateTransactionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Transaction created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/youtube/jobs/{job_id}": {
             "get": {
                 "security": [
@@ -1014,6 +1197,21 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.CreateTransactionRequest": {
+            "type": "object",
+            "required": [
+                "bank_account_id",
+                "subscription_plan_id"
+            ],
+            "properties": {
+                "bank_account_id": {
+                    "type": "string"
+                },
+                "subscription_plan_id": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.LoginRequest": {
             "type": "object",
             "required": [
@@ -1137,6 +1335,22 @@ const docTemplate = `{
                     "enum": [
                         "admin",
                         "user"
+                    ]
+                }
+            }
+        },
+        "routes.UpdateTransactionStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "paid",
+                        "expired",
+                        "cancelled"
                     ]
                 }
             }

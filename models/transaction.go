@@ -1,0 +1,82 @@
+package models
+
+import (
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+type Transaction struct {
+	ID                   uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID               uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
+	ReferenceID          string     `gorm:"uniqueIndex" json:"reference_id"`
+	Status               string     `gorm:"default:'pending';not null" json:"status"`
+	Amount               float64    `gorm:"not null" json:"amount"`
+	UniqueCode           int        `gorm:"not null" json:"unique_code"`
+	TotalAmount          float64    `gorm:"not null" json:"total_amount"`
+	BankName             string     `gorm:"not null" json:"bank_name"`
+	BankAccountNumber    string     `gorm:"not null" json:"bank_account_number"`
+	BankAccountName      string     `gorm:"not null" json:"bank_account_name"`
+	SubscriptionName     string     `gorm:"not null" json:"subscription_name"`
+	SubscriptionType     string     `json:"subscription_type"`
+	SubscriptionPrice    float64    `json:"subscription_price"`
+	SubscriptionDuration int        `json:"subscription_duration"`
+	SubscriptionBenefits string     `gorm:"type:text" json:"-"`
+	BenefitsList         []string   `gorm:"-" json:"subscription_benefits"`
+	PaidAt               *time.Time `json:"paid_at"`
+	ExpiredAt            *time.Time `json:"expired_at"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+func (Transaction) TableName() string {
+	return "transactions"
+}
+
+func (t *Transaction) PrepareResponse() {
+	t.BenefitsList = parseStringToList(t.SubscriptionBenefits)
+}
+
+type UserSubscription struct {
+	ID           uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID       uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
+	TransactionID uuid.UUID `gorm:"type:uuid;not null;index" json:"transaction_id"`
+	PlanName     string     `gorm:"not null" json:"plan_name"`
+	PlanType     string     `json:"plan_type"`
+	PlanBenefits string     `gorm:"type:text" json:"-"`
+	BenefitsList []string   `gorm:"-" json:"plan_benefits"`
+	PlanPrice    float64    `json:"plan_price"`
+	PlanDuration int        `json:"plan_duration"`
+	Status       string     `gorm:"default:'active';not null" json:"status"`
+	StartDate    time.Time  `json:"start_date"`
+	EndDate      time.Time  `json:"end_date"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+func (UserSubscription) TableName() string {
+	return "user_subscriptions"
+}
+
+func (s *UserSubscription) PrepareResponse() {
+	s.BenefitsList = parseStringToList(s.PlanBenefits)
+}
+
+func (s *UserSubscription) IsActive() bool {
+	return s.Status == "active" && time.Now().Before(s.EndDate)
+}
+
+func parseStringToList(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}

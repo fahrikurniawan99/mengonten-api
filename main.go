@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -42,6 +45,20 @@ func main() {
 
 	gin.SetMode(os.Getenv("GIN_MODE"))
 	r := gin.Default()
+
+	corsOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+	if len(corsOrigins) == 0 || corsOrigins[0] == "" {
+		corsOrigins = []string{"*"}
+	}
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     corsOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

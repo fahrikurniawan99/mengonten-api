@@ -4,9 +4,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"mengonten-api/middleware"
+	"mengonten-api/worker"
 )
 
-func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor) {
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", Register(db))
@@ -18,5 +19,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/profile", GetProfile(db))
+		protected.POST("/youtube/submit", SubmitYouTubeVideo(db))
+		protected.GET("/youtube/:video_id", GetYouTubeVideo(db))
+		protected.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
 	}
 }

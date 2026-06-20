@@ -13,6 +13,7 @@ import (
 	"mengonten-api/config"
 	"mengonten-api/models"
 	"mengonten-api/routes"
+	"mengonten-api/worker"
 )
 
 // @title Mengonten API
@@ -31,14 +32,17 @@ func main() {
 		log.Fatal("Failed to connect to database")
 	}
 
-	db.AutoMigrate(&models.User{})
+	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{})
+
+	externalAPIs := config.InitExternalAPIs()
+	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)
 
 	gin.SetMode(os.Getenv("GIN_MODE"))
 	r := gin.Default()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	routes.RegisterRoutes(r, db)
+	routes.RegisterRoutes(r, db, youtubeProcessor)
 
 	port := os.Getenv("PORT")
 	if port == "" {

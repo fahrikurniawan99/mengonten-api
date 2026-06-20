@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"mengonten-api/models"
 	"mengonten-api/utils"
+	"mengonten-api/worker"
 )
 
 type SubmitYouTubeRequest struct {
@@ -43,7 +44,7 @@ type VideoSegmentResponse struct {
 // @Success 201 {object} utils.Response{data=YouTubeVideoResponse} "Video submitted"
 // @Failure 400 {object} utils.Response "Invalid request"
 // @Router /api/youtube/submit [post]
-func SubmitYouTubeVideo(db *gorm.DB) gin.HandlerFunc {
+func SubmitYouTubeVideo(db *gorm.DB, processor *worker.YouTubeProcessor) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
@@ -67,6 +68,8 @@ func SubmitYouTubeVideo(db *gorm.DB) gin.HandlerFunc {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to submit video")
 			return
 		}
+
+		go processor.ProcessYouTubeVideo(db, video.ID)
 
 		utils.SuccessResponse(c, http.StatusCreated, "Video submitted for processing", YouTubeVideoResponse{
 			ID:         video.ID,

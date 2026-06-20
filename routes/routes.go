@@ -19,7 +19,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/profile", GetProfile(db))
-		protected.POST("/youtube/submit", SubmitYouTubeVideo(db))
+		protected.POST("/youtube/submit", SubmitYouTubeVideo(db, youtubeProcessor))
 		protected.GET("/youtube/:video_id", GetYouTubeVideo(db))
 		protected.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
 	}

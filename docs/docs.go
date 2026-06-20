@@ -15,6 +15,146 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/admin/bank-accounts": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua bank accounts - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bank Account"
+                ],
+                "summary": "Get all bank accounts (admin)",
+                "responses": {
+                    "200": {
+                        "description": "Bank accounts list",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Tambah rekening bank baru - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bank Account"
+                ],
+                "summary": "Create bank account (admin)",
+                "parameters": [
+                    {
+                        "description": "Bank account data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.CreateBankAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Bank account created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/bank-accounts/{account_id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update rekening bank - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bank Account"
+                ],
+                "summary": "Update bank account (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.UpdateBankAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bank account updated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Hapus rekening bank - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bank Account"
+                ],
+                "summary": "Delete bank account (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Account ID",
+                        "name": "account_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Bank account deleted",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/users": {
             "get": {
                 "security": [
@@ -407,6 +547,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/bank-accounts": {
+            "get": {
+                "description": "List bank accounts yang aktif untuk user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Bank Account"
+                ],
+                "summary": "Get active bank accounts (public)",
+                "responses": {
+                    "200": {
+                        "description": "Active bank accounts",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/profile": {
             "get": {
                 "security": [
@@ -634,6 +794,28 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.CreateBankAccountRequest": {
+            "type": "object",
+            "required": [
+                "account_name",
+                "account_number",
+                "bank_name"
+            ],
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "account_number": {
+                    "type": "string"
+                },
+                "bank_name": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.LoginRequest": {
             "type": "object",
             "required": [
@@ -689,6 +871,26 @@ const docTemplate = `{
             "properties": {
                 "youtube_url": {
                     "type": "string"
+                }
+            }
+        },
+        "routes.UpdateBankAccountRequest": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "account_number": {
+                    "type": "string"
+                },
+                "bank_name": {
+                    "type": "string"
+                },
+                "icon": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
                 }
             }
         },

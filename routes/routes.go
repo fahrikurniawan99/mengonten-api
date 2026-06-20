@@ -27,6 +27,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		user.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
 	}
 
+	r.GET("/api/bank-accounts", GetActiveBankAccounts(db))
+
 	admin := r.Group("/api/admin")
 	admin.Use(middleware.AuthMiddleware())
 	admin.Use(middleware.RequireRole(db, "admin"))
@@ -35,5 +37,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		admin.GET("/users/:user_id", GetUserByID(db))
 		admin.PUT("/users/:user_id/role", UpdateUserRole(db))
 		admin.DELETE("/users/:user_id", DeleteUser(db))
+
+		admin.GET("/bank-accounts", GetBankAccounts(db))
+		admin.POST("/bank-accounts", CreateBankAccount(db))
+		admin.PUT("/bank-accounts/:account_id", UpdateBankAccount(db))
+		admin.DELETE("/bank-accounts/:account_id", DeleteBankAccount(db))
 	}
 }

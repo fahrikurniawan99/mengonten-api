@@ -6,6 +6,21 @@ definitions:
       user:
         $ref: '#/definitions/routes.UserResponse'
     type: object
+  routes.CreateBankAccountRequest:
+    properties:
+      account_name:
+        type: string
+      account_number:
+        type: string
+      bank_name:
+        type: string
+      icon:
+        type: string
+    required:
+    - account_name
+    - account_number
+    - bank_name
+    type: object
   routes.LoginRequest:
     properties:
       email:
@@ -44,6 +59,19 @@ definitions:
         type: string
     required:
     - youtube_url
+    type: object
+  routes.UpdateBankAccountRequest:
+    properties:
+      account_name:
+        type: string
+      account_number:
+        type: string
+      bank_name:
+        type: string
+      icon:
+        type: string
+      is_active:
+        type: boolean
     type: object
   routes.UpdateRoleRequest:
     properties:
@@ -98,6 +126,93 @@ info:
   title: Mengonten API
   version: "1.0"
 paths:
+  /api/admin/bank-accounts:
+    get:
+      description: List semua bank accounts - admin only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bank accounts list
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get all bank accounts (admin)
+      tags:
+      - Bank Account
+    post:
+      consumes:
+      - application/json
+      description: Tambah rekening bank baru - admin only
+      parameters:
+      - description: Bank account data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreateBankAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Bank account created
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Create bank account (admin)
+      tags:
+      - Bank Account
+  /api/admin/bank-accounts/{account_id}:
+    delete:
+      description: Hapus rekening bank - admin only
+      parameters:
+      - description: Account ID
+        in: path
+        name: account_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bank account deleted
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Delete bank account (admin)
+      tags:
+      - Bank Account
+    put:
+      consumes:
+      - application/json
+      description: Update rekening bank - admin only
+      parameters:
+      - description: Account ID
+        in: path
+        name: account_id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateBankAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bank account updated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update bank account (admin)
+      tags:
+      - Bank Account
   /api/admin/users:
     get:
       description: List semua users - admin only
@@ -344,6 +459,19 @@ paths:
       summary: Verify email address
       tags:
       - Auth
+  /api/bank-accounts:
+    get:
+      description: List bank accounts yang aktif untuk user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active bank accounts
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get active bank accounts (public)
+      tags:
+      - Bank Account
   /api/profile:
     get:
       description: Retrieve authenticated user profile information

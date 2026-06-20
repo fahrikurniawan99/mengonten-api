@@ -12,6 +12,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	{
 		auth.POST("/register", Register(db, emailSender))
 		auth.POST("/login", Login(db))
+		auth.POST("/admin/login", AdminLogin(db))
 		auth.POST("/logout", Logout)
 		auth.POST("/verify-email", VerifyEmail(db, emailSender))
 		auth.POST("/resend-verification", ResendVerification(db, emailSender))

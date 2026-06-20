@@ -147,6 +147,62 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Admin login
+// @Description Login khusus admin - hanya user dengan role admin
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Admin credentials"
+// @Success 200 {object} utils.Response{data=AuthResponse} "Admin login successful"
+// @Failure 400 {object} utils.Response "Invalid request format"
+// @Failure 401 {object} utils.Response "Invalid email or password"
+// @Failure 403 {object} utils.Response "Access denied - admin only"
+// @Router /api/auth/admin/login [post]
+func AdminLogin(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req LoginRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var user models.User
+		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
+			return
+		}
+
+		if user.Role != "admin" {
+			utils.ErrorResponse(c, http.StatusForbidden, "Access denied. Admin only.")
+			return
+		}
+
+		if !user.IsVerified {
+			utils.ErrorResponse(c, http.StatusForbidden, "Email not verified. Please check your inbox.")
+			return
+		}
+
+		token := generateToken(user.ID)
+		utils.SuccessResponse(c, http.StatusOK, "Admin login successful", AuthResponse{
+			Token: token,
+			User: UserResponse{
+				ID:             user.ID,
+				Email:          user.Email,
+				Username:       user.Username,
+				Role:           user.Role,
+				AccountStatus:  user.AccountStatus,
+				WarningMessage: user.WarningMessage,
+				IsVerified:     user.IsVerified,
+			},
+		})
+	}
+}
+
 // @Summary User logout
 // @Description Logout user (clears session)
 // @Tags Auth

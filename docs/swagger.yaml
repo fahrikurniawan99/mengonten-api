@@ -758,6 +758,45 @@ paths:
       summary: Warn user (admin)
       tags:
       - Admin
+  /api/auth/admin/login:
+    post:
+      consumes:
+      - application/json
+      description: Login khusus admin - hanya user dengan role admin
+      parameters:
+      - description: Admin credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Admin login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.AuthResponse'
+              type: object
+        "400":
+          description: Invalid request format
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "401":
+          description: Invalid email or password
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Access denied - admin only
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Admin login
+      tags:
+      - Auth
   /api/auth/login:
     post:
       consumes:

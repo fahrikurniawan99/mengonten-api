@@ -56,6 +56,17 @@ func (cu *CloudinaryUploader) Upload(filePath, folder string) (string, error) {
 		return "", fmt.Errorf("cloudinary upload error: %v", err)
 	}
 
-	log.Printf("Video uploaded to Cloudinary: %s", resp.SecureURL)
-	return resp.SecureURL, nil
+	log.Printf("Cloudinary response - PublicID: %s, Format: %s, Version: %v", resp.PublicID, resp.Format, resp.Version)
+
+	if resp.SecureURL == "" && resp.URL == "" {
+		return "", fmt.Errorf("cloudinary returned empty URL")
+	}
+
+	secureURL := resp.SecureURL
+	if secureURL == "" {
+		secureURL = resp.URL
+	}
+
+	log.Printf("Video uploaded to Cloudinary: %s", secureURL)
+	return secureURL, nil
 }

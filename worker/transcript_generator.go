@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -43,12 +42,12 @@ func (tg *TranscriptGenerator) GenerateTranscript(ctx context.Context, videoPath
 	}
 	defer audioFile.Close()
 
-	req := openai.AudioTranscriptionRequest{
+	req := openai.AudioRequest{
 		Model:    openai.Whisper1,
 		FilePath: audioPath,
 	}
 
-	resp, err := tg.Client.CreateTranscription(ctx, req)
+	resp, err := tg.Client.CreateTranscription(context.Background(), req)
 	if err != nil {
 		return "", fmt.Errorf("whisper API error: %v", err)
 	}

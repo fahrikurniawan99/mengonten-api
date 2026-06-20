@@ -49,7 +49,6 @@ func (cu *CloudinaryUploader) Upload(filePath, folder string) (string, error) {
 	uploadParams := uploader.UploadParams{
 		Folder:       folder,
 		ResourceType: "video",
-		Quality:      "auto",
 	}
 
 	resp, err := cu.Client.Upload.Upload(ctx, file, uploadParams)

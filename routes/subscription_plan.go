@@ -48,7 +48,7 @@ func GetPlansAdmin(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		for i := range plans {
-			plans[i].CalculateFinalPrice()
+			plans[i].PrepareResponse()
 		}
 		utils.SuccessResponse(c, http.StatusOK, "Plans retrieved", plans)
 	}
@@ -68,7 +68,7 @@ func GetActivePlans(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 		for i := range plans {
-			plans[i].CalculateFinalPrice()
+			plans[i].PrepareResponse()
 		}
 		utils.SuccessResponse(c, http.StatusOK, "Active plans retrieved", plans)
 	}
@@ -108,7 +108,7 @@ func CreatePlan(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		plan.CalculateFinalPrice()
+		plan.PrepareResponse()
 		utils.SuccessResponse(c, http.StatusCreated, "Plan created", plan)
 	}
 }
@@ -175,7 +175,7 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 
 		db.Model(&plan).Updates(updates)
 		db.First(&plan, parsedID)
-		plan.CalculateFinalPrice()
+		plan.PrepareResponse()
 
 		utils.SuccessResponse(c, http.StatusOK, "Plan updated", plan)
 	}

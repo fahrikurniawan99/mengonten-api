@@ -4,10 +4,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"mengonten-api/middleware"
-	"mengonten-api/worker"
 )
 
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, clipWorker *worker.ClipWorker) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB) {
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", Register(db))
@@ -19,9 +18,5 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, clipWorker *worker.ClipWorker) {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		protected.GET("/profile", GetProfile(db))
-		protected.POST("/videos/upload", UploadVideo(db))
-		protected.POST("/videos/:video_id/clip", CreateClipJob(db, clipWorker))
-		protected.GET("/videos/:video_id/clips", GetVideoClips(db))
-		protected.GET("/videos/jobs/:job_id", GetClipJobStatus(db))
 	}
 }

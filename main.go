@@ -13,7 +13,6 @@ import (
 	"mengonten-api/config"
 	"mengonten-api/models"
 	"mengonten-api/routes"
-	"mengonten-api/worker"
 )
 
 // @title Mengonten API
@@ -32,20 +31,14 @@ func main() {
 		log.Fatal("Failed to connect to database")
 	}
 
-	db.AutoMigrate(&models.User{}, &models.Video{}, &models.VideoClip{}, &models.ClipJob{})
-
-	openaiConfig := config.InitOpenAI()
-	clipWorker := worker.NewClipWorker("ffmpeg", "uploads/clips")
-	if openaiConfig != nil {
-		clipWorker.SetOpenAIClient(openaiConfig.Client)
-	}
+	db.AutoMigrate(&models.User{})
 
 	gin.SetMode(os.Getenv("GIN_MODE"))
 	r := gin.Default()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	routes.RegisterRoutes(r, db, clipWorker)
+	routes.RegisterRoutes(r, db)
 
 	port := os.Getenv("PORT")
 	if port == "" {

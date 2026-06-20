@@ -97,6 +97,12 @@ func SubmitYouTubeVideo(db *gorm.DB, processor *worker.YouTubeProcessor) gin.Han
 // @Router /api/youtube/{video_id} [get]
 func GetYouTubeVideo(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
 		videoID := c.Param("video_id")
 		parsedVideoID, err := uuid.Parse(videoID)
 		if err != nil {
@@ -107,6 +113,11 @@ func GetYouTubeVideo(db *gorm.DB) gin.HandlerFunc {
 		var video models.YouTubeVideo
 		if err := db.First(&video, parsedVideoID).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusNotFound, "Video not found")
+			return
+		}
+
+		if video.UserID != userID.(uuid.UUID) {
+			utils.ErrorResponse(c, http.StatusForbidden, "Access denied")
 			return
 		}
 
@@ -138,6 +149,12 @@ func GetYouTubeVideo(db *gorm.DB) gin.HandlerFunc {
 // @Router /api/youtube/jobs/{job_id} [get]
 func GetProcessingJobStatus(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
 		jobID := c.Param("job_id")
 		parsedJobID, err := uuid.Parse(jobID)
 		if err != nil {
@@ -148,6 +165,17 @@ func GetProcessingJobStatus(db *gorm.DB) gin.HandlerFunc {
 		var job models.ProcessingJob
 		if err := db.First(&job, parsedJobID).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusNotFound, "Job not found")
+			return
+		}
+
+		var video models.YouTubeVideo
+		if err := db.First(&video, job.VideoID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Video not found")
+			return
+		}
+
+		if video.UserID != userID.(uuid.UUID) {
+			utils.ErrorResponse(c, http.StatusForbidden, "Access denied")
 			return
 		}
 
@@ -171,6 +199,12 @@ func GetProcessingJobStatus(db *gorm.DB) gin.HandlerFunc {
 // @Router /api/youtube/segments/{segment_id} [delete]
 func DeleteVideoSegment(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
 		segmentID := c.Param("segment_id")
 		parsedSegmentID, err := uuid.Parse(segmentID)
 		if err != nil {
@@ -181,6 +215,17 @@ func DeleteVideoSegment(db *gorm.DB) gin.HandlerFunc {
 		var segment models.VideoSegment
 		if err := db.First(&segment, parsedSegmentID).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusNotFound, "Segment not found")
+			return
+		}
+
+		var video models.YouTubeVideo
+		if err := db.First(&video, segment.VideoID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Video not found")
+			return
+		}
+
+		if video.UserID != userID.(uuid.UUID) {
+			utils.ErrorResponse(c, http.StatusForbidden, "Access denied")
 			return
 		}
 

@@ -69,12 +69,14 @@ func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 		}
 
 		verificationToken := uuid.New().String()
+		tokenExpires := time.Now().Add(24 * time.Hour)
 
 		user := models.User{
 			Email:             req.Email,
 			Username:          req.Username,
 			Password:          string(hashedPassword),
 			VerificationToken: verificationToken,
+			TokenExpiresAt:    &tokenExpires,
 		}
 
 		if err := db.Create(&user).Error; err != nil {
@@ -212,7 +214,7 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 
 		var user models.User
 		if err := db.Where("verification_token = ?", req.Token).First(&user).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid or expired verification token")
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid verification token")
 			return
 		}
 
@@ -221,17 +223,77 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 			return
 		}
 
+		if user.TokenExpiresAt != nil && time.Now().After(*user.TokenExpiresAt) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Verification token has expired. Please request a new one.")
+			return
+		}
+
 		now := time.Now()
 		db.Model(&user).Updates(map[string]interface{}{
-			"is_verified":         true,
-			"verification_token":  "",
-			"verified_at":         &now,
+			"is_verified":        true,
+			"verification_token": "",
+			"token_expires_at":   nil,
+			"verified_at":        &now,
+		})
+
+		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully. You can now login.", nil)
+	}
+}
+
+type ResendVerificationRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// @Summary Resend verification email
+// @Description Kirim ulang email verifikasi (cooldown 5 menit)
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body ResendVerificationRequest true "Email address"
+// @Success 200 {object} utils.Response "Verification email sent"
+// @Failure 400 {object} utils.Response "Invalid request"
+// @Failure 429 {object} utils.Response "Rate limited - cooldown active"
+// @Router /api/auth/resend-verification [post]
+func ResendVerification(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req ResendVerificationRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var user models.User
+		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered, a verification link has been sent.", nil)
+			return
+		}
+
+		if user.IsVerified {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Email is already verified")
+			return
+		}
+
+		if user.TokenExpiresAt != nil && time.Now().Before(*user.TokenExpiresAt) {
+			remaining := time.Until(*user.TokenExpiresAt)
+			if remaining > (23*time.Hour + 55*time.Minute) {
+				utils.ErrorResponse(c, http.StatusTooManyRequests,
+					"Please wait before requesting a new verification email. Try again in 5 minutes.")
+				return
+			}
+		}
+
+		newToken := uuid.New().String()
+		newExpiry := time.Now().Add(24 * time.Hour)
+
+		db.Model(&user).Updates(map[string]interface{}{
+			"verification_token": newToken,
+			"token_expires_at":   newExpiry,
 		})
 
 		if emailSender != nil {
-			go emailSender.SendVerificationEmail(user.Email, user.Username, "")
+			go emailSender.SendVerificationEmail(user.Email, user.Username, newToken)
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully. You can now login.", nil)
+		utils.SuccessResponse(c, http.StatusOK, "Verification email sent. Please check your inbox.", nil)
 	}
 }

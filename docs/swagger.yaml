@@ -31,6 +31,13 @@ definitions:
     - password
     - username
     type: object
+  routes.ResendVerificationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   routes.SubmitYouTubeRequest:
     properties:
       youtube_url:
@@ -168,6 +175,36 @@ paths:
           schema:
             $ref: '#/definitions/utils.Response'
       summary: Register new user
+      tags:
+      - Auth
+  /api/auth/resend-verification:
+    post:
+      consumes:
+      - application/json
+      description: Kirim ulang email verifikasi (cooldown 5 menit)
+      parameters:
+      - description: Email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification email sent
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "429":
+          description: Rate limited - cooldown active
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Resend verification email
       tags:
       - Auth
   /api/auth/verify-email:

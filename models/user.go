@@ -14,6 +14,7 @@ type User struct {
 	Password          string     `gorm:"not null" json:"-"`
 	IsVerified        bool       `gorm:"default:false" json:"is_verified"`
 	VerificationToken string     `gorm:"index" json:"-"`
+	TokenExpiresAt    *time.Time `json:"-"`
 	VerifiedAt        *time.Time `json:"verified_at"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`

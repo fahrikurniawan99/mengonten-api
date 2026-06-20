@@ -14,6 +14,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		auth.POST("/login", Login(db))
 		auth.POST("/logout", Logout)
 		auth.POST("/verify-email", VerifyEmail(db, emailSender))
+		auth.POST("/resend-verification", ResendVerification(db, emailSender))
 	}
 
 	protected := r.Group("/api")

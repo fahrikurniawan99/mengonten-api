@@ -155,6 +155,146 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/subscription-plans": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua subscription plans - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Get all subscription plans (admin)",
+                "responses": {
+                    "200": {
+                        "description": "Plans list",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Tambah plan baru - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Create subscription plan (admin)",
+                "parameters": [
+                    {
+                        "description": "Plan data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.CreatePlanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Plan created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/subscription-plans/{plan_id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update plan - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Update subscription plan (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.UpdatePlanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Plan updated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Hapus plan - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Delete subscription plan (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Plan deleted",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/users": {
             "get": {
                 "security": [
@@ -616,6 +756,26 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/subscription-plans": {
+            "get": {
+                "description": "List plans yang aktif untuk user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Get active subscription plans (public)",
+                "responses": {
+                    "200": {
+                        "description": "Active plans",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/youtube/jobs/{job_id}": {
             "get": {
                 "security": [
@@ -816,6 +976,44 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.CreatePlanRequest": {
+            "type": "object",
+            "required": [
+                "benefits",
+                "duration_days",
+                "name",
+                "price",
+                "type"
+            ],
+            "properties": {
+                "benefits": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_percent": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "duration_days": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.LoginRequest": {
             "type": "object",
             "required": [
@@ -891,6 +1089,40 @@ const docTemplate = `{
                 },
                 "is_active": {
                     "type": "boolean"
+                }
+            }
+        },
+        "routes.UpdatePlanRequest": {
+            "type": "object",
+            "properties": {
+                "benefits": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "discount_percent": {
+                    "type": "number",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "duration_days": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "sort_order": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
                 }
             }
         },

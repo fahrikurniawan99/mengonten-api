@@ -21,6 +21,33 @@ definitions:
     - account_number
     - bank_name
     type: object
+  routes.CreatePlanRequest:
+    properties:
+      benefits:
+        type: string
+      description:
+        type: string
+      discount_percent:
+        maximum: 100
+        minimum: 0
+        type: number
+      duration_days:
+        type: integer
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      type:
+        type: string
+    required:
+    - benefits
+    - duration_days
+    - name
+    - price
+    - type
+    type: object
   routes.LoginRequest:
     properties:
       email:
@@ -72,6 +99,29 @@ definitions:
         type: string
       is_active:
         type: boolean
+    type: object
+  routes.UpdatePlanRequest:
+    properties:
+      benefits:
+        type: string
+      description:
+        type: string
+      discount_percent:
+        maximum: 100
+        minimum: 0
+        type: number
+      duration_days:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      price:
+        type: number
+      sort_order:
+        type: integer
+      type:
+        type: string
     type: object
   routes.UpdateRoleRequest:
     properties:
@@ -213,6 +263,93 @@ paths:
       summary: Update bank account (admin)
       tags:
       - Bank Account
+  /api/admin/subscription-plans:
+    get:
+      description: List semua subscription plans - admin only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plans list
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get all subscription plans (admin)
+      tags:
+      - Subscription Plan
+    post:
+      consumes:
+      - application/json
+      description: Tambah plan baru - admin only
+      parameters:
+      - description: Plan data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreatePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Plan created
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Create subscription plan (admin)
+      tags:
+      - Subscription Plan
+  /api/admin/subscription-plans/{plan_id}:
+    delete:
+      description: Hapus plan - admin only
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan deleted
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Delete subscription plan (admin)
+      tags:
+      - Subscription Plan
+    put:
+      consumes:
+      - application/json
+      description: Update plan - admin only
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdatePlanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plan updated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update subscription plan (admin)
+      tags:
+      - Subscription Plan
   /api/admin/users:
     get:
       description: List semua users - admin only
@@ -500,6 +637,19 @@ paths:
       summary: Get user profile
       tags:
       - Auth
+  /api/subscription-plans:
+    get:
+      description: List plans yang aktif untuk user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active plans
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Get active subscription plans (public)
+      tags:
+      - Subscription Plan
   /api/youtube/{video_id}:
     get:
       description: Get YouTube video info dan list generated clips

@@ -1,4 +1,18 @@
 definitions:
+  routes.AdminReviewRequest:
+    properties:
+      admin_notes:
+        type: string
+      refund_amount:
+        type: number
+      status:
+        enum:
+        - confirmed
+        - rejected
+        type: string
+    required:
+    - status
+    type: object
   routes.AuthResponse:
     properties:
       token:
@@ -284,6 +298,109 @@ paths:
       summary: Update bank account (admin)
       tags:
       - Bank Account
+  /api/admin/payment-proofs:
+    get:
+      description: List semua bukti transfer - admin only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment proofs list
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get all payment proofs (admin)
+      tags:
+      - Admin Payment Proof
+  /api/admin/payment-proofs/{proof_id}:
+    get:
+      description: Detail bukti transfer - admin only
+      parameters:
+      - description: Payment Proof ID
+        in: path
+        name: proof_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment proof detail
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get payment proof detail (admin)
+      tags:
+      - Admin Payment Proof
+  /api/admin/payment-proofs/{proof_id}/confirm-overpaid:
+    put:
+      consumes:
+      - multipart/form-data
+      description: Konfirmasi bukti transfer dengan nominal kelebihan + upload bukti
+        refund
+      parameters:
+      - description: Payment Proof ID
+        in: path
+        name: proof_id
+        required: true
+        type: string
+      - description: Catatan admin
+        in: formData
+        name: admin_notes
+        required: true
+        type: string
+      - description: Jumlah refund
+        in: formData
+        name: refund_amount
+        required: true
+        type: number
+      - description: Bukti pengembalian dana
+        in: formData
+        name: refund_proof
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Overpaid confirmed
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Confirm overpaid payment proof (admin)
+      tags:
+      - Admin Payment Proof
+  /api/admin/payment-proofs/{proof_id}/review:
+    put:
+      consumes:
+      - application/json
+      description: Konfirmasi atau tolak bukti transfer
+      parameters:
+      - description: Payment Proof ID
+        in: path
+        name: proof_id
+        required: true
+        type: string
+      - description: Review result
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.AdminReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Review result
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Confirm or reject payment proof (admin)
+      tags:
+      - Admin Payment Proof
   /api/admin/subscription-plans:
     get:
       description: List semua subscription plans - admin only
@@ -784,6 +901,83 @@ paths:
       summary: Create transaction (user)
       tags:
       - Transaction
+  /api/transactions/{transaction_id}/payment-proof:
+    get:
+      description: Lihat bukti transfer milik user sendiri
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment proof
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get my payment proof (user)
+      tags:
+      - Payment Proof
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload foto bukti transfer (max 5) + info transfer
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: transaction_id
+        required: true
+        type: string
+      - description: Atas nama rekening
+        in: formData
+        name: account_name
+        required: true
+        type: string
+      - description: Transfer dari bank
+        in: formData
+        name: source_bank
+        required: true
+        type: string
+      - description: Nomor rekening pengirim
+        in: formData
+        name: source_account_number
+        type: string
+      - collectionFormat: csv
+        description: Foto bukti transfer (max 5)
+        in: formData
+        items:
+          type: file
+        name: photos
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: Deskripsi per foto
+        in: formData
+        items:
+          type: string
+        name: descriptions
+        required: true
+        type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Payment proof uploaded
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Upload bukti transfer (user)
+      tags:
+      - Payment Proof
   /api/youtube/{video_id}:
     get:
       description: Get YouTube video info dan list generated clips

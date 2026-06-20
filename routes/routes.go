@@ -30,6 +30,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		user.GET("/transactions", GetMyTransactions(db))
 		user.GET("/subscription/check", CheckActiveSubscription(db))
 		user.GET("/subscription/history", GetSubscriptionHistory(db))
+
+		user.POST("/transactions/:transaction_id/payment-proof", UploadPaymentProof(db))
+		user.GET("/transactions/:transaction_id/payment-proof", GetMyPaymentProof(db))
 	}
 
 	r.GET("/api/bank-accounts", GetActiveBankAccounts(db))
@@ -56,5 +59,10 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 
 		admin.GET("/transactions", GetAllTransactions(db))
 		admin.PUT("/transactions/:transaction_id/status", UpdateTransactionStatus(db))
+
+		admin.GET("/payment-proofs", GetAllPaymentProofs(db))
+		admin.GET("/payment-proofs/:proof_id", GetPaymentProofDetail(db))
+		admin.PUT("/payment-proofs/:proof_id/review", ReviewPaymentProof(db))
+		admin.PUT("/payment-proofs/:proof_id/confirm-overpaid", ConfirmOverpaidProof(db))
 	}
 }

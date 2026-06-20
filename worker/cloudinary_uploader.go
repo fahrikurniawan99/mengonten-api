@@ -84,3 +84,17 @@ func (cu *CloudinaryUploader) Upload(filePath, folder string) (string, error) {
 	log.Printf("Video uploaded to Cloudinary: %s", secureURL)
 	return secureURL, nil
 }
+
+func UploadToCloudinaryStatic(filePath, folder string) (string, error) {
+	apis := config.InitExternalAPIs()
+	if apis.CloudinaryName == "" {
+		return "", fmt.Errorf("cloudinary not configured")
+	}
+
+	uploader := NewCloudinaryUploader(apis)
+	if uploader == nil {
+		return "", fmt.Errorf("cloudinary init failed")
+	}
+
+	return uploader.Upload(filePath, folder)
+}

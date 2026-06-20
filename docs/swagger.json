@@ -147,6 +147,168 @@
                 }
             }
         },
+        "/api/admin/payment-proofs": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua bukti transfer - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Payment Proof"
+                ],
+                "summary": "Get all payment proofs (admin)",
+                "responses": {
+                    "200": {
+                        "description": "Payment proofs list",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/payment-proofs/{proof_id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Detail bukti transfer - admin only",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Payment Proof"
+                ],
+                "summary": "Get payment proof detail (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment Proof ID",
+                        "name": "proof_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment proof detail",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/payment-proofs/{proof_id}/confirm-overpaid": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Konfirmasi bukti transfer dengan nominal kelebihan + upload bukti refund",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Payment Proof"
+                ],
+                "summary": "Confirm overpaid payment proof (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment Proof ID",
+                        "name": "proof_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Catatan admin",
+                        "name": "admin_notes",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "Jumlah refund",
+                        "name": "refund_amount",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Bukti pengembalian dana",
+                        "name": "refund_proof",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Overpaid confirmed",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/payment-proofs/{proof_id}/review": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Konfirmasi atau tolak bukti transfer",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin Payment Proof"
+                ],
+                "summary": "Confirm or reject payment proof (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment Proof ID",
+                        "name": "proof_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Review result",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.AdminReviewRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Review result",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/subscription-plans": {
             "get": {
                 "security": [
@@ -951,6 +1113,123 @@
                 }
             }
         },
+        "/api/transactions/{transaction_id}/payment-proof": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Lihat bukti transfer milik user sendiri",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Proof"
+                ],
+                "summary": "Get my payment proof (user)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "transaction_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment proof",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Upload foto bukti transfer (max 5) + info transfer",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Payment Proof"
+                ],
+                "summary": "Upload bukti transfer (user)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "transaction_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Atas nama rekening",
+                        "name": "account_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Transfer dari bank",
+                        "name": "source_bank",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nomor rekening pengirim",
+                        "name": "source_account_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "file"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Foto bukti transfer (max 5)",
+                        "name": "photos",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Deskripsi per foto",
+                        "name": "descriptions",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Payment proof uploaded",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/youtube/jobs/{job_id}": {
             "get": {
                 "security": [
@@ -1118,6 +1397,27 @@
         }
     },
     "definitions": {
+        "routes.AdminReviewRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "admin_notes": {
+                    "type": "string"
+                },
+                "refund_amount": {
+                    "type": "number"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "confirmed",
+                        "rejected"
+                    ]
+                }
+            }
+        },
         "routes.AuthResponse": {
             "type": "object",
             "properties": {

@@ -32,7 +32,7 @@ func main() {
 		log.Fatal("Failed to connect to database")
 	}
 
-	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.Transaction{}, &models.UserSubscription{})
+	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.Transaction{}, &models.UserSubscription{}, &models.PaymentProof{}, &models.PaymentProofPhoto{})
 
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)

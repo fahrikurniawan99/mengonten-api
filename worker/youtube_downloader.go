@@ -23,7 +23,6 @@ func (yd *YouTubeDownloader) Download(youtubeURL, outputPath string) error {
 	log.Printf("Downloading video from: %s", youtubeURL)
 
 	cmd := exec.Command("yt-dlp",
-		"-f", "best",
 		"-o", outputPath,
 		youtubeURL)
 

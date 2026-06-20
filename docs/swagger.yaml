@@ -45,6 +45,16 @@ definitions:
     required:
     - youtube_url
     type: object
+  routes.UpdateRoleRequest:
+    properties:
+      role:
+        enum:
+        - admin
+        - user
+        type: string
+    required:
+    - role
+    type: object
   routes.UserResponse:
     properties:
       email:
@@ -88,6 +98,107 @@ info:
   title: Mengonten API
   version: "1.0"
 paths:
+  /api/admin/users:
+    get:
+      description: List semua users - admin only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users list
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "403":
+          description: Access denied
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get all users (admin)
+      tags:
+      - Admin
+  /api/admin/users/{user_id}:
+    delete:
+      description: Hapus user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Delete user (admin)
+      tags:
+      - Admin
+    get:
+      description: Get detail user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User detail
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get user by ID (admin)
+      tags:
+      - Admin
+  /api/admin/users/{user_id}/role:
+    put:
+      consumes:
+      - application/json
+      description: Ubah role user - admin only
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: New role
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateRoleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Role updated
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update user role (admin)
+      tags:
+      - Admin
   /api/auth/login:
     post:
       consumes:

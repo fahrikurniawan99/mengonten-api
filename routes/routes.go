@@ -17,13 +17,23 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		auth.POST("/resend-verification", ResendVerification(db, emailSender))
 	}
 
-	protected := r.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
+	user := r.Group("/api")
+	user.Use(middleware.AuthMiddleware())
 	{
-		protected.GET("/profile", GetProfile(db))
-		protected.POST("/youtube/submit", SubmitYouTubeVideo(db, youtubeProcessor))
-		protected.GET("/youtube/:video_id", GetYouTubeVideo(db))
-		protected.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
-		protected.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
+		user.GET("/profile", GetProfile(db))
+		user.POST("/youtube/submit", SubmitYouTubeVideo(db, youtubeProcessor))
+		user.GET("/youtube/:video_id", GetYouTubeVideo(db))
+		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
+		user.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
+	}
+
+	admin := r.Group("/api/admin")
+	admin.Use(middleware.AuthMiddleware())
+	admin.Use(middleware.RequireRole(db, "admin"))
+	{
+		admin.GET("/users", GetUsers(db))
+		admin.GET("/users/:user_id", GetUserByID(db))
+		admin.PUT("/users/:user_id/role", UpdateUserRole(db))
+		admin.DELETE("/users/:user_id", DeleteUser(db))
 	}
 }

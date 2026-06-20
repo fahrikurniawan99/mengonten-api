@@ -1,11 +1,11 @@
 package worker
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 )
 
 type YouTubeDownloader struct {
@@ -27,9 +27,13 @@ func (yd *YouTubeDownloader) Download(youtubeURL, outputPath string) error {
 		"-o", outputPath,
 		youtubeURL)
 
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		log.Printf("yt-dlp error: %v", err)
-		return fmt.Errorf("failed to download video: %v", err)
+		errMsg := stderr.String()
+		log.Printf("yt-dlp error: %s", errMsg)
+		return fmt.Errorf("failed to download video: %s", errMsg)
 	}
 
 	if _, err := os.Stat(outputPath); err != nil {

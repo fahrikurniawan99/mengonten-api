@@ -2067,8 +2067,8 @@ const docTemplate = `{
             "required": [
                 "benefits",
                 "duration_days",
+                "final_price",
                 "name",
-                "price",
                 "type"
             ],
             "properties": {
@@ -2086,11 +2086,11 @@ const docTemplate = `{
                 "duration_days": {
                     "type": "integer"
                 },
+                "final_price": {
+                    "type": "number"
+                },
                 "name": {
                     "type": "string"
-                },
-                "price": {
-                    "type": "number"
                 },
                 "sort_order": {
                     "type": "integer"
@@ -2242,14 +2242,14 @@ const docTemplate = `{
                 "duration_days": {
                     "type": "integer"
                 },
+                "final_price": {
+                    "type": "number"
+                },
                 "is_active": {
                     "type": "boolean"
                 },
                 "name": {
                     "type": "string"
-                },
-                "price": {
-                    "type": "number"
                 },
                 "sort_order": {
                     "type": "integer"

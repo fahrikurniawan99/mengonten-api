@@ -37,6 +37,14 @@ func main() {
 
 	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.TransactionPreview{}, &models.UserSubscription{}, &models.PaymentProof{}, &models.PaymentProofPhoto{})
 
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_name")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_type")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_price")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_duration")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_benefits")
+	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS duration DOUBLE PRECISION DEFAULT 0")
+	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0")
+
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)
 

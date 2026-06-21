@@ -62,6 +62,18 @@ definitions:
     - price
     - type
     type: object
+  routes.CreateRuleRequest:
+    properties:
+      description:
+        type: string
+      rule_key:
+        type: string
+      rule_value:
+        type: string
+    required:
+    - rule_key
+    - rule_value
+    type: object
   routes.CreateTransactionRequest:
     properties:
       bank_account_id:
@@ -165,6 +177,13 @@ definitions:
         type: string
     required:
     - role
+    type: object
+  routes.UpdateRuleRequest:
+    properties:
+      description:
+        type: string
+      rule_value:
+        type: string
     type: object
   routes.UpdateTransactionStatusRequest:
     properties:
@@ -425,6 +444,55 @@ paths:
       summary: Confirm or reject payment proof (admin)
       tags:
       - Admin Payment Proof
+  /api/admin/rules/{rule_id}:
+    delete:
+      description: Hapus rule dari subscription plan
+      parameters:
+      - description: Rule ID
+        in: path
+        name: rule_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rule deleted
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Delete rule (admin)
+      tags:
+      - Subscription Rule
+    put:
+      consumes:
+      - application/json
+      description: Update rule value dan description
+      parameters:
+      - description: Rule ID
+        in: path
+        name: rule_id
+        required: true
+        type: string
+      - description: Update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rule updated
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update rule (admin)
+      tags:
+      - Subscription Rule
   /api/admin/subscription-plans:
     get:
       description: List semua subscription plans - admin only
@@ -512,6 +580,59 @@ paths:
       summary: Update subscription plan (admin)
       tags:
       - Subscription Plan
+  /api/admin/subscription-plans/{plan_id}/rules:
+    get:
+      description: List semua rules untuk subscription plan tertentu
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rules list
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get rules for a plan (admin)
+      tags:
+      - Subscription Rule
+    post:
+      consumes:
+      - application/json
+      description: Tambah rule baru ke subscription plan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
+      - description: Rule data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreateRuleRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Rule created
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Rule key already exists
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Create rule for a plan (admin)
+      tags:
+      - Subscription Rule
   /api/admin/transactions:
     get:
       description: List semua transaksi - admin only
@@ -1026,6 +1147,21 @@ paths:
       summary: Get subscription history
       tags:
       - Subscription
+  /api/subscription/rules:
+    get:
+      description: Cek rules dan usage dari langganan aktif user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active subscription rules + usage
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get my active subscription rules
+      tags:
+      - Subscription Rule
   /api/transactions:
     get:
       description: List transaksi milik user sendiri

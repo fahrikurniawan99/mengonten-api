@@ -317,6 +317,84 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/admin/rules/{rule_id}": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Update rule value dan description",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Rule"
+                ],
+                "summary": "Update rule (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "rule_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.UpdateRuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rule updated",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Hapus rule dari subscription plan",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Rule"
+                ],
+                "summary": "Delete rule (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Rule ID",
+                        "name": "rule_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rule deleted",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/admin/subscription-plans": {
             "get": {
                 "security": [
@@ -450,6 +528,90 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Plan deleted",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/subscription-plans/{plan_id}/rules": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua rules untuk subscription plan tertentu",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Rule"
+                ],
+                "summary": "Get rules for a plan (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Rules list",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Tambah rule baru ke subscription plan",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Rule"
+                ],
+                "summary": "Create rule for a plan (admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Rule data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.CreateRuleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Rule created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    },
+                    "409": {
+                        "description": "Rule key already exists",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1283,6 +1445,31 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/subscription/rules": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Cek rules dan usage dari langganan aktif user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Rule"
+                ],
+                "summary": "Get my active subscription rules",
+                "responses": {
+                    "200": {
+                        "description": "Active subscription rules + usage",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/transactions": {
             "get": {
                 "security": [
@@ -1721,6 +1908,24 @@ const docTemplate = `{
                 }
             }
         },
+        "routes.CreateRuleRequest": {
+            "type": "object",
+            "required": [
+                "rule_key",
+                "rule_value"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "rule_key": {
+                    "type": "string"
+                },
+                "rule_value": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.CreateTransactionRequest": {
             "type": "object",
             "required": [
@@ -1874,6 +2079,17 @@ const docTemplate = `{
                         "admin",
                         "user"
                     ]
+                }
+            }
+        },
+        "routes.UpdateRuleRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "rule_value": {
+                    "type": "string"
                 }
             }
         },

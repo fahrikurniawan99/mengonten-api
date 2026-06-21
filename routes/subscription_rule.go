@@ -24,6 +24,14 @@ type UpdateRuleRequest struct {
 	Description string `json:"description" binding:"omitempty"`
 }
 
+// @Summary Get rules for a plan (admin)
+// @Description List semua rules untuk subscription plan tertentu
+// @Tags Subscription Rule
+// @Produce json
+// @Security Bearer
+// @Param plan_id path string true "Plan ID"
+// @Success 200 {object} utils.Response "Rules list"
+// @Router /api/admin/subscription-plans/{plan_id}/rules [get]
 func GetPlanRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		planID := c.Param("plan_id")
@@ -43,6 +51,17 @@ func GetPlanRules(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Create rule for a plan (admin)
+// @Description Tambah rule baru ke subscription plan
+// @Tags Subscription Rule
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param plan_id path string true "Plan ID"
+// @Param request body CreateRuleRequest true "Rule data"
+// @Success 201 {object} utils.Response "Rule created"
+// @Failure 409 {object} utils.Response "Rule key already exists"
+// @Router /api/admin/subscription-plans/{plan_id}/rules [post]
 func CreatePlanRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		planID := c.Param("plan_id")
@@ -86,6 +105,16 @@ func CreatePlanRule(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Update rule (admin)
+// @Description Update rule value dan description
+// @Tags Subscription Rule
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param rule_id path string true "Rule ID"
+// @Param request body UpdateRuleRequest true "Update data"
+// @Success 200 {object} utils.Response "Rule updated"
+// @Router /api/admin/rules/{rule_id} [put]
 func UpdatePlanRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ruleID := c.Param("rule_id")
@@ -122,6 +151,14 @@ func UpdatePlanRule(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Delete rule (admin)
+// @Description Hapus rule dari subscription plan
+// @Tags Subscription Rule
+// @Produce json
+// @Security Bearer
+// @Param rule_id path string true "Rule ID"
+// @Success 200 {object} utils.Response "Rule deleted"
+// @Router /api/admin/rules/{rule_id} [delete]
 func DeletePlanRule(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ruleID := c.Param("rule_id")
@@ -146,6 +183,13 @@ func DeletePlanRule(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Get my active subscription rules
+// @Description Cek rules dan usage dari langganan aktif user
+// @Tags Subscription Rule
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} utils.Response "Active subscription rules + usage"
+// @Router /api/subscription/rules [get]
 func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")

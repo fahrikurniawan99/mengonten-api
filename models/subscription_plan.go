@@ -15,7 +15,7 @@ type SubscriptionPlan struct {
 	BenefitsList     []string  `gorm:"-" json:"benefits"`
 	Price            float64   `gorm:"not null" json:"price"`
 	DiscountPercent  float64   `gorm:"default:0" json:"discount_percent"`
-	FinalPrice       float64   `gorm:"-" json:"final_price"`
+	FinalPrice       float64   `gorm:"not null" json:"final_price"`
 	Type             string    `gorm:"not null" json:"type"`
 	DurationDays     int       `gorm:"not null;default:30" json:"duration_days"`
 	IsActive         bool      `gorm:"default:true" json:"is_active"`
@@ -32,10 +32,5 @@ func (p *SubscriptionPlan) PrepareResponse() {
 	p.BenefitsList = strings.Split(p.Benefits, ",")
 	for i := range p.BenefitsList {
 		p.BenefitsList[i] = strings.TrimSpace(p.BenefitsList[i])
-	}
-	if p.DiscountPercent > 0 {
-		p.FinalPrice = p.Price - (p.Price * p.DiscountPercent / 100)
-	} else {
-		p.FinalPrice = p.Price
 	}
 }

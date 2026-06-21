@@ -95,6 +95,7 @@ func CreatePlan(db *gorm.DB) gin.HandlerFunc {
 			Name:            req.Name,
 			Description:     req.Description,
 			Benefits:        req.Benefits,
+			FinalPrice:      req.FinalPrice,
 			DiscountPercent: req.DiscountPercent,
 			Type:            req.Type,
 			DurationDays:    req.DurationDays,
@@ -160,6 +161,7 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 			updates["benefits"] = req.Benefits
 		}
 		if req.FinalPrice > 0 {
+			updates["final_price"] = req.FinalPrice
 			discount := req.DiscountPercent
 			if discount == 0 {
 				discount = plan.DiscountPercent
@@ -172,8 +174,11 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 		}
 		if req.DiscountPercent > 0 {
 			updates["discount_percent"] = req.DiscountPercent
-			if req.FinalPrice == 0 {
-				finalPrice := plan.Price * (1 - req.DiscountPercent/100)
+			finalPrice := req.FinalPrice
+			if finalPrice == 0 {
+				finalPrice = plan.FinalPrice
+			}
+			if req.DiscountPercent > 0 {
 				updates["price"] = finalPrice / (1 - req.DiscountPercent/100)
 			}
 		}

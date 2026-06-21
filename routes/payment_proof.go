@@ -2,7 +2,9 @@ package routes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -119,7 +121,10 @@ func UploadPaymentProof(db *gorm.DB) gin.HandlerFunc {
 
 			clipURL, err := worker.UploadToR2Static(savePath, fmt.Sprintf("payment-proofs/%s/%d_%s", proof.ID.String(), i+1, filepath.Ext(file.Filename)))
 			if err != nil {
+				log.Printf("Failed to upload photo %d to R2: %v", i+1, err)
 				clipURL = ""
+			} else {
+				os.Remove(savePath)
 			}
 
 			photo := models.PaymentProofPhoto{
@@ -341,7 +346,12 @@ func ConfirmOverpaidProof(db *gorm.DB) gin.HandlerFunc {
 			filePath := filepath.Join(uploadDir, filename)
 
 			if err := c.SaveUploadedFile(file, filePath); err == nil {
-				url, _ := worker.UploadToR2Static(filePath, fmt.Sprintf("refund-proofs/%s/%s", proof.ID.String(), filename))
+				url, err := worker.UploadToR2Static(filePath, fmt.Sprintf("refund-proofs/%s/%s", proof.ID.String(), filename))
+				if err != nil {
+					log.Printf("Failed to upload refund proof to R2: %v", err)
+				} else {
+					os.Remove(filePath)
+				}
 				refundProofURL = url
 			}
 		}

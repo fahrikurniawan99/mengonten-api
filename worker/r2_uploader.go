@@ -29,6 +29,9 @@ func NewR2Uploader(apis *config.ExternalAPIs) *R2Uploader {
 
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", apis.R2AccountID)
 
+	log.Printf("R2 init: AccountID=%s, Bucket=%s, PublicURL=%s, Endpoint=%s",
+		apis.R2AccountID, apis.R2Bucket, apis.R2PublicURL, endpoint)
+
 	cfg, err := awsconfig.LoadDefaultConfig(context.Background(),
 		awsconfig.WithRegion("auto"),
 		awsconfig.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
@@ -61,6 +64,8 @@ func (r *R2Uploader) Upload(filePath, key string) (string, error) {
 		return "", fmt.Errorf("R2 uploader not initialized")
 	}
 
+	log.Printf("R2 uploading: %s -> bucket=%s key=%s", filePath, r.Bucket, key)
+
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %v", err)
@@ -80,7 +85,7 @@ func (r *R2Uploader) Upload(filePath, key string) (string, error) {
 	}
 
 	publicURL := fmt.Sprintf("%s/%s", r.PublicURL, key)
-	log.Printf("File uploaded to R2: %s", publicURL)
+	log.Printf("R2 uploaded OK: %s", publicURL)
 	return publicURL, nil
 }
 

@@ -27,7 +27,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
 		user.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
 
-		user.POST("/transactions", CreateTransaction(db))
+		user.POST("/transactions/preview", PreviewTransaction(db))
+		user.GET("/transactions/preview/:reference_id", GetPreviewStatus(db))
+		user.POST("/transactions/confirm", ConfirmTransaction(db))
 		user.GET("/transactions", GetMyTransactions(db))
 		user.GET("/subscription/check", CheckActiveSubscription(db))
 		user.GET("/subscription/history", GetSubscriptionHistory(db))

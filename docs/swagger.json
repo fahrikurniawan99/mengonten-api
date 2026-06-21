@@ -1524,6 +1524,118 @@
                 }
             }
         },
+        "/api/transactions/confirm": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Konfirmasi preview → buat transaction",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Confirm payment preview (user)",
+                "parameters": [
+                    {
+                        "description": "Preview reference_id",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.ConfirmTransactionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Transaction created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/transactions/preview": {
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Generate preview pembayaran dengan unique code (berlaku 15 menit)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Generate payment preview (user)",
+                "parameters": [
+                    {
+                        "description": "Preview data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.PreviewTransactionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Payment preview",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/transactions/preview/{reference_id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Cek apakah preview masih valid",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Check preview status (user)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Preview Reference ID",
+                        "name": "reference_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Preview status",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/transactions/{transaction_id}/payment-proof": {
             "get": {
                 "security": [
@@ -1840,6 +1952,17 @@
                 }
             }
         },
+        "routes.ConfirmTransactionRequest": {
+            "type": "object",
+            "required": [
+                "reference_id"
+            ],
+            "properties": {
+                "reference_id": {
+                    "type": "string"
+                }
+            }
+        },
         "routes.CreateBankAccountRequest": {
             "type": "object",
             "required": [
@@ -1944,6 +2067,21 @@
                     "type": "string"
                 },
                 "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "routes.PreviewTransactionRequest": {
+            "type": "object",
+            "required": [
+                "bank_account_id",
+                "subscription_plan_id"
+            ],
+            "properties": {
+                "bank_account_id": {
+                    "type": "string"
+                },
+                "subscription_plan_id": {
                     "type": "string"
                 }
             }

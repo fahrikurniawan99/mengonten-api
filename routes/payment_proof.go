@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -284,10 +285,21 @@ func ReviewPaymentProof(db *gorm.DB) gin.HandlerFunc {
 
 			var transaction models.Transaction
 			db.First(&transaction, proof.TransactionID)
-			createUserSubscription(db, &transaction)
+
+			if transaction.UserSubscriptionID != nil {
+				activateSubscription(db, *transaction.UserSubscriptionID)
+			}
 		} else if req.Status == "rejected" {
 			db.Model(&models.Transaction{}).Where("id = ?", proof.TransactionID).
 				Update("status", "cancelled")
+
+			var transaction models.Transaction
+			db.First(&transaction, proof.TransactionID)
+
+			if transaction.UserSubscriptionID != nil {
+				db.Model(&models.UserSubscription{}).Where("id = ?", *transaction.UserSubscriptionID).
+					Update("status", "cancelled")
+			}
 		}
 
 		db.Preload("Photos").First(&proof, parsedID)
@@ -368,9 +380,36 @@ func ConfirmOverpaidProof(db *gorm.DB) gin.HandlerFunc {
 
 		var transaction models.Transaction
 		db.First(&transaction, proof.TransactionID)
-		createUserSubscription(db, &transaction)
+
+		if transaction.UserSubscriptionID != nil {
+			activateSubscription(db, *transaction.UserSubscriptionID)
+		}
 
 		db.Preload("Photos").First(&proof, parsedID)
 		utils.SuccessResponse(c, http.StatusOK, "Overpaid proof confirmed", proof)
 	}
+}
+
+func activateSubscription(db *gorm.DB, subscriptionID uuid.UUID) {
+	var subscription models.UserSubscription
+	if err := db.First(&subscription, subscriptionID).Error; err != nil {
+		return
+	}
+
+	planName := subscription.PlanName
+	var plan models.SubscriptionPlan
+	rules := map[string]string{}
+	if err := db.Where("name = ?", planName).First(&plan).Error; err == nil {
+		var ruleList []models.SubscriptionRule
+		db.Where("plan_id = ?", plan.ID).Find(&ruleList)
+		for _, r := range ruleList {
+			rules[r.RuleKey] = r.RuleValue
+		}
+	}
+
+	rulesJSON, _ := json.Marshal(rules)
+	db.Model(&subscription).Updates(map[string]interface{}{
+		"status": "active",
+		"rules":  string(rulesJSON),
+	})
 }

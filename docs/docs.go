@@ -1493,43 +1493,6 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Buat transaksi baru untuk langganan",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Transaction"
-                ],
-                "summary": "Create transaction (user)",
-                "parameters": [
-                    {
-                        "description": "Transaction data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.CreateTransactionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Transaction created",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
             }
         },
         "/api/transactions/confirm": {
@@ -2045,21 +2008,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "rule_value": {
-                    "type": "string"
-                }
-            }
-        },
-        "routes.CreateTransactionRequest": {
-            "type": "object",
-            "required": [
-                "bank_account_id",
-                "subscription_plan_id"
-            ],
-            "properties": {
-                "bank_account_id": {
-                    "type": "string"
-                },
-                "subscription_plan_id": {
                     "type": "string"
                 }
             }

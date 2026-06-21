@@ -81,16 +81,6 @@ definitions:
     - rule_key
     - rule_value
     type: object
-  routes.CreateTransactionRequest:
-    properties:
-      bank_account_id:
-        type: string
-      subscription_plan_id:
-        type: string
-    required:
-    - bank_account_id
-    - subscription_plan_id
-    type: object
   routes.LoginRequest:
     properties:
       email:
@@ -1192,29 +1182,6 @@ paths:
       security:
       - Bearer: []
       summary: Get my transactions (user)
-      tags:
-      - Transaction
-    post:
-      consumes:
-      - application/json
-      description: Buat transaksi baru untuk langganan
-      parameters:
-      - description: Transaction data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/routes.CreateTransactionRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Transaction created
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Create transaction (user)
       tags:
       - Transaction
   /api/transactions/{transaction_id}/payment-proof:

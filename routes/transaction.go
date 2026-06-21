@@ -3,7 +3,6 @@ package routes
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -45,84 +44,6 @@ func mapStatus(status string) string {
 		return "Dibatalkan"
 	default:
 		return status
-	}
-}
-
-// @Summary Create transaction (user)
-// @Description Buat transaksi baru untuk langganan
-// @Tags Transaction
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param request body CreateTransactionRequest true "Transaction data"
-// @Success 201 {object} utils.Response "Transaction created"
-// @Router /api/transactions [post]
-func CreateTransaction(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-			return
-		}
-
-		var req CreateTransactionRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-			return
-		}
-
-		var plan models.SubscriptionPlan
-		if err := db.First(&plan, req.SubscriptionPlanID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "Subscription plan not found")
-			return
-		}
-
-		var bank models.BankAccount
-		if err := db.First(&bank, req.BankAccountID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "Bank account not found")
-			return
-		}
-
-		if !plan.IsActive || !bank.IsActive {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Plan or bank account is not active")
-			return
-		}
-
-		price := plan.Price
-		if plan.DiscountPercent > 0 {
-			price = price - (price * plan.DiscountPercent / 100)
-		}
-
-		uniqueCode := generateUniqueCode()
-		totalAmount := price + float64(uniqueCode)
-
-		expireAt := time.Now().Add(24 * time.Hour)
-
-		transaction := models.Transaction{
-			UserID:               userID.(uuid.UUID),
-			ReferenceID:          generateReferenceID(),
-			Status:               "pending",
-			Amount:               price,
-			UniqueCode:           uniqueCode,
-			TotalAmount:          totalAmount,
-			BankName:             bank.BankName,
-			BankAccountNumber:    bank.AccountNumber,
-			BankAccountName:      bank.AccountName,
-			SubscriptionName:     plan.Name,
-			SubscriptionType:     plan.Type,
-			SubscriptionPrice:    price,
-			SubscriptionDuration: plan.DurationDays,
-			SubscriptionBenefits: plan.Benefits,
-			ExpiredAt:            &expireAt,
-		}
-
-		if err := db.Create(&transaction).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create transaction")
-			return
-		}
-
-		transaction.PrepareResponse()
-		utils.SuccessResponse(c, http.StatusCreated, "Transaction created", transaction)
 	}
 }
 
@@ -225,39 +146,20 @@ func UpdateTransactionStatus(db *gorm.DB) gin.HandlerFunc {
 
 		db.Model(&transaction).Updates(updates)
 
-		if req.Status == "paid" {
-			createUserSubscription(db, &transaction)
+		if req.Status == "paid" && transaction.UserSubscriptionID != nil {
+			var subscription models.UserSubscription
+			if err := db.First(&subscription, *transaction.UserSubscriptionID).Error; err == nil {
+				rules := fetchPlanRules(db, subscription.PlanName)
+				db.Model(&subscription).Updates(map[string]interface{}{
+					"status": "active",
+					"rules":  string(mustMarshal(rules)),
+				})
+			}
 		}
 
-		transaction.Status = req.Status
+		db.First(&transaction, parsedID)
 		transaction.PrepareResponse()
 		utils.SuccessResponse(c, http.StatusOK, "Transaction updated", transaction)
-	}
-}
-
-func createUserSubscription(db *gorm.DB, transaction *models.Transaction) {
-	startDate := time.Now()
-	endDate := startDate.AddDate(0, 0, transaction.SubscriptionDuration)
-
-	rules := fetchPlanRules(db, transaction.SubscriptionName)
-	rulesJSON, _ := json.Marshal(rules)
-
-	subscription := models.UserSubscription{
-		UserID:        transaction.UserID,
-		TransactionID: transaction.ID,
-		PlanName:      transaction.SubscriptionName,
-		PlanType:      transaction.SubscriptionType,
-		PlanBenefits:  transaction.SubscriptionBenefits,
-		PlanPrice:     transaction.SubscriptionPrice,
-		PlanDuration:  transaction.SubscriptionDuration,
-		Rules:         string(rulesJSON),
-		Status:        "active",
-		StartDate:     startDate,
-		EndDate:       endDate,
-	}
-
-	if err := db.Create(&subscription).Error; err != nil {
-		log.Printf("Failed to create subscription for transaction %s: %v", transaction.ID, err)
 	}
 }
 
@@ -283,6 +185,11 @@ func resolveRules(subscription *models.UserSubscription, db *gorm.DB) map[string
 	}
 
 	return fetchPlanRules(db, subscription.PlanName)
+}
+
+func mustMarshal(v interface{}) []byte {
+	data, _ := json.Marshal(v)
+	return data
 }
 
 func parseBenefitsString(benefits string) []string {
@@ -478,9 +385,31 @@ func ConfirmTransaction(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		expireAt := time.Now().Add(24 * time.Hour)
+		startDate := time.Now()
+		endDate := startDate.AddDate(0, 0, preview.SubscriptionDuration)
+
+		subscription := models.UserSubscription{
+			UserID:        userID.(uuid.UUID),
+			PlanName:      preview.SubscriptionName,
+			PlanType:      preview.SubscriptionType,
+			PlanBenefits:  preview.SubscriptionBenefits,
+			PlanPrice:     preview.Amount,
+			PlanDuration:  preview.SubscriptionDuration,
+			Status:        "pending_payment",
+			StartDate:     startDate,
+			EndDate:       endDate,
+		}
+
+		if err := db.Create(&subscription).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create subscription")
+			return
+		}
+
+		subscription.PrepareResponse()
 
 		transaction := models.Transaction{
 			UserID:               userID.(uuid.UUID),
+			UserSubscriptionID:   &subscription.ID,
 			ReferenceID:          generateReferenceID(),
 			Status:               "pending",
 			Amount:               preview.Amount,
@@ -489,22 +418,20 @@ func ConfirmTransaction(db *gorm.DB) gin.HandlerFunc {
 			BankName:             preview.BankName,
 			BankAccountNumber:    preview.BankAccountNumber,
 			BankAccountName:      preview.BankAccountName,
-			SubscriptionName:     preview.SubscriptionName,
-			SubscriptionType:     preview.SubscriptionType,
-			SubscriptionPrice:    preview.Amount,
-			SubscriptionDuration: preview.SubscriptionDuration,
-			SubscriptionBenefits: preview.SubscriptionBenefits,
 			ExpiredAt:            &expireAt,
 		}
 
 		if err := db.Create(&transaction).Error; err != nil {
+			db.Delete(&subscription)
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create transaction")
 			return
 		}
 
 		db.Delete(&preview)
 
-		transaction.PrepareResponse()
-		utils.SuccessResponse(c, http.StatusCreated, "Transaction created. Please complete payment within 24 hours.", transaction)
+		utils.SuccessResponse(c, http.StatusCreated, "Transaction created. Please complete payment within 24 hours.", map[string]interface{}{
+			"transaction":         transaction,
+			"user_subscription":   subscription,
+		})
 	}
 }

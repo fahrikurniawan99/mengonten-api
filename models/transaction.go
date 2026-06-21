@@ -9,26 +9,21 @@ import (
 )
 
 type Transaction struct {
-	ID                   uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID               uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	ReferenceID          string     `gorm:"uniqueIndex" json:"reference_id"`
-	Status               string     `gorm:"default:'pending';not null" json:"status"`
-	Amount               float64    `gorm:"not null" json:"amount"`
-	UniqueCode           int        `gorm:"not null" json:"unique_code"`
-	TotalAmount          float64    `gorm:"not null" json:"total_amount"`
-	BankName             string     `gorm:"not null" json:"bank_name"`
-	BankAccountNumber    string     `gorm:"not null" json:"bank_account_number"`
-	BankAccountName      string     `gorm:"not null" json:"bank_account_name"`
-	SubscriptionName     string     `gorm:"not null" json:"subscription_name"`
-	SubscriptionType     string     `json:"subscription_type"`
-	SubscriptionPrice    float64    `json:"subscription_price"`
-	SubscriptionDuration int        `json:"subscription_duration"`
-	SubscriptionBenefits string     `gorm:"type:text" json:"-"`
-	BenefitsList         []string   `gorm:"-" json:"subscription_benefits"`
-	PaidAt               *time.Time `json:"paid_at"`
-	ExpiredAt            *time.Time `json:"expired_at"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID            uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
+	UserSubscriptionID *uuid.UUID `gorm:"type:uuid;index" json:"user_subscription_id"`
+	ReferenceID       string     `gorm:"uniqueIndex" json:"reference_id"`
+	Status            string     `gorm:"default:'pending';not null" json:"status"`
+	Amount            float64    `gorm:"not null" json:"amount"`
+	UniqueCode        int        `gorm:"not null" json:"unique_code"`
+	TotalAmount       float64    `gorm:"not null" json:"total_amount"`
+	BankName          string     `gorm:"not null" json:"bank_name"`
+	BankAccountNumber string     `gorm:"not null" json:"bank_account_number"`
+	BankAccountName   string     `gorm:"not null" json:"bank_account_name"`
+	PaidAt            *time.Time `json:"paid_at"`
+	ExpiredAt         *time.Time `json:"expired_at"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 func (Transaction) TableName() string {
@@ -36,7 +31,6 @@ func (Transaction) TableName() string {
 }
 
 func (t *Transaction) PrepareResponse() {
-	t.BenefitsList = parseStringToList(t.SubscriptionBenefits)
 }
 
 type UserSubscription struct {

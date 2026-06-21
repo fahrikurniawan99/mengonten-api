@@ -33,4 +33,10 @@ func (p *SubscriptionPlan) PrepareResponse() {
 	for i := range p.BenefitsList {
 		p.BenefitsList[i] = strings.TrimSpace(p.BenefitsList[i])
 	}
+	origPrice := p.Price
+	if p.DiscountPercent > 0 {
+		origPrice = p.FinalPrice
+	}
+	p.FinalPrice = p.Price
+	p.Price = origPrice
 }

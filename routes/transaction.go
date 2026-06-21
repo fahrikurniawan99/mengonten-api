@@ -262,7 +262,7 @@ func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
 
 		db.Where("user_id = ?", userID).Delete(&models.TransactionPreview{})
 
-		price := plan.FinalPrice
+		price := plan.Price
 
 		uniqueCode := generateUniqueCode()
 		totalAmount := price + float64(uniqueCode)

@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"strings"
@@ -237,6 +239,9 @@ func createUserSubscription(db *gorm.DB, transaction *models.Transaction) {
 	startDate := time.Now()
 	endDate := startDate.AddDate(0, 0, transaction.SubscriptionDuration)
 
+	rules := fetchPlanRules(db, transaction.SubscriptionName)
+	rulesJSON, _ := json.Marshal(rules)
+
 	subscription := models.UserSubscription{
 		UserID:        transaction.UserID,
 		TransactionID: transaction.ID,
@@ -245,14 +250,39 @@ func createUserSubscription(db *gorm.DB, transaction *models.Transaction) {
 		PlanBenefits:  transaction.SubscriptionBenefits,
 		PlanPrice:     transaction.SubscriptionPrice,
 		PlanDuration:  transaction.SubscriptionDuration,
+		Rules:         string(rulesJSON),
 		Status:        "active",
 		StartDate:     startDate,
 		EndDate:       endDate,
 	}
 
 	if err := db.Create(&subscription).Error; err != nil {
-		fmt.Printf("Failed to create subscription for transaction %s: %v\n", transaction.ID, err)
+		log.Printf("Failed to create subscription for transaction %s: %v", transaction.ID, err)
 	}
+}
+
+func fetchPlanRules(db *gorm.DB, planName string) map[string]string {
+	var plan models.SubscriptionPlan
+	if err := db.Where("name = ?", planName).First(&plan).Error; err != nil {
+		return nil
+	}
+
+	var rules []models.SubscriptionRule
+	db.Where("plan_id = ?", plan.ID).Find(&rules)
+
+	result := make(map[string]string)
+	for _, r := range rules {
+		result[r.RuleKey] = r.RuleValue
+	}
+	return result
+}
+
+func resolveRules(subscription *models.UserSubscription, db *gorm.DB) map[string]string {
+	if len(subscription.RulesMap) > 0 {
+		return subscription.RulesMap
+	}
+
+	return fetchPlanRules(db, subscription.PlanName)
 }
 
 func parseBenefitsString(benefits string) []string {

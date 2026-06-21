@@ -211,20 +211,12 @@ func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var plan models.SubscriptionPlan
-		var rules []models.SubscriptionRule
-		if err := db.Where("name = ?", subscription.PlanName).First(&plan).Error; err == nil {
-			db.Where("plan_id = ?", plan.ID).Find(&rules)
-		}
-
-		rulesMap := make(map[string]interface{})
-		for _, r := range rules {
-			rulesMap[r.RuleKey] = r.RuleValue
-		}
+		subscription.PrepareResponse()
+		rules := resolveRules(&subscription, db)
 
 		storageLimitMB := 0
-		if v, ok := rulesMap["max_storage_mb"]; ok {
-			storageLimitMB, _ = strconv.Atoi(fmt.Sprintf("%v", v))
+		if v, ok := rules["max_storage_mb"]; ok {
+			storageLimitMB, _ = strconv.Atoi(v)
 		}
 		storageUsedMB := float64(subscription.StorageUsedBytes) / (1024 * 1024)
 
@@ -233,7 +225,7 @@ func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
 			"plan_name":        subscription.PlanName,
 			"plan_type":        subscription.PlanType,
 			"end_date":         subscription.EndDate,
-			"rules":            rulesMap,
+			"rules":            rules,
 			"usage": map[string]interface{}{
 				"storage_used_bytes": subscription.StorageUsedBytes,
 				"storage_used_mb":    fmt.Sprintf("%.2f", storageUsedMB),
@@ -251,17 +243,6 @@ func GetUserSubscriptionRules(db *gorm.DB, userID uuid.UUID) map[string]string {
 		return nil
 	}
 
-	var plan models.SubscriptionPlan
-	if err := db.Where("name = ?", subscription.PlanName).First(&plan).Error; err != nil {
-		return nil
-	}
-
-	var rules []models.SubscriptionRule
-	db.Where("plan_id = ?", plan.ID).Find(&rules)
-
-	rulesMap := make(map[string]string)
-	for _, r := range rules {
-		rulesMap[r.RuleKey] = r.RuleValue
-	}
-	return rulesMap
+	subscription.PrepareResponse()
+	return resolveRules(&subscription, db)
 }

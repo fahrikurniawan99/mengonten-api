@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -49,6 +50,8 @@ type UserSubscription struct {
 	PlanPrice      float64    `json:"plan_price"`
 	PlanDuration   int        `json:"plan_duration"`
 	StorageUsedBytes int64    `gorm:"default:0" json:"storage_used_bytes"`
+	Rules          string     `gorm:"type:text" json:"-"`
+	RulesMap       map[string]string `gorm:"-" json:"rules"`
 	Status         string     `gorm:"default:'active';not null" json:"status"`
 	StartDate    time.Time  `json:"start_date"`
 	EndDate      time.Time  `json:"end_date"`
@@ -61,6 +64,13 @@ func (UserSubscription) TableName() string {
 
 func (s *UserSubscription) PrepareResponse() {
 	s.BenefitsList = parseStringToList(s.PlanBenefits)
+	if s.Rules != "" {
+		s.RulesMap = make(map[string]string)
+		json.Unmarshal([]byte(s.Rules), &s.RulesMap)
+	}
+	if s.RulesMap == nil {
+		s.RulesMap = make(map[string]string)
+	}
 }
 
 func (s *UserSubscription) IsActive() bool {

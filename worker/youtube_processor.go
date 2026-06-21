@@ -250,6 +250,12 @@ func getVideoRules(db *gorm.DB, userID uuid.UUID) map[string]string {
 		return nil
 	}
 
+	subscription.PrepareResponse()
+
+	if len(subscription.RulesMap) > 0 {
+		return subscription.RulesMap
+	}
+
 	var plan models.SubscriptionPlan
 	if err := db.Where("name = ?", subscription.PlanName).First(&plan).Error; err != nil {
 		return nil

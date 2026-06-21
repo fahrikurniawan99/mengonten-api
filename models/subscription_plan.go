@@ -35,7 +35,11 @@ func (p *SubscriptionPlan) PrepareResponse() {
 	}
 	origPrice := p.Price
 	if p.DiscountPercent > 0 {
-		origPrice = p.FinalPrice
+		if p.FinalPrice > 0 {
+			origPrice = p.FinalPrice
+		} else {
+			origPrice = p.Price / (1 - p.DiscountPercent/100)
+		}
 	}
 	p.FinalPrice = p.Price
 	p.Price = origPrice

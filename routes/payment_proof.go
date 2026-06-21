@@ -110,14 +110,14 @@ func UploadPaymentProof(db *gorm.DB) gin.HandlerFunc {
 		uploadDir := "uploads/payment-proofs"
 		for i, file := range files {
 			filename := fmt.Sprintf("%s_%d_%s", proof.ID.String(), i+1, filepath.Ext(file.Filename))
-			filepath := filepath.Join(uploadDir, filename)
+			savePath := filepath.Join(uploadDir, filename)
 
-			if err := c.SaveUploadedFile(file, filepath); err != nil {
+			if err := c.SaveUploadedFile(file, savePath); err != nil {
 				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save photo")
 				return
 			}
 
-			clipURL, err := worker.UploadToCloudinaryStatic(filepath, fmt.Sprintf("payment_proofs/%s", proof.ID.String()))
+			clipURL, err := worker.UploadToR2Static(savePath, fmt.Sprintf("payment-proofs/%s/%d_%s", proof.ID.String(), i+1, filepath.Ext(file.Filename)))
 			if err != nil {
 				clipURL = ""
 			}
@@ -341,7 +341,7 @@ func ConfirmOverpaidProof(db *gorm.DB) gin.HandlerFunc {
 			filePath := filepath.Join(uploadDir, filename)
 
 			if err := c.SaveUploadedFile(file, filePath); err == nil {
-				url, _ := worker.UploadToCloudinaryStatic(filePath, fmt.Sprintf("refund_proofs/%s", proof.ID.String()))
+				url, _ := worker.UploadToR2Static(filePath, fmt.Sprintf("refund-proofs/%s/%s", proof.ID.String(), filename))
 				refundProofURL = url
 			}
 		}

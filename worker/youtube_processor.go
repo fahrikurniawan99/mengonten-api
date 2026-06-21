@@ -15,10 +15,10 @@ import (
 )
 
 type YouTubeProcessor struct {
-	ExternalAPIs     *config.ExternalAPIs
-	TempDir          string
-	OutputDir        string
-	CloudinaryUpload bool
+	ExternalAPIs *config.ExternalAPIs
+	TempDir      string
+	OutputDir    string
+	R2Upload     bool
 }
 
 func NewYouTubeProcessor(externalAPIs *config.ExternalAPIs) *YouTubeProcessor {
@@ -29,10 +29,10 @@ func NewYouTubeProcessor(externalAPIs *config.ExternalAPIs) *YouTubeProcessor {
 	os.MkdirAll(outputDir, 0755)
 
 	return &YouTubeProcessor{
-		ExternalAPIs:     externalAPIs,
-		TempDir:          tempDir,
-		OutputDir:        outputDir,
-		CloudinaryUpload: externalAPIs.CloudinaryName != "",
+		ExternalAPIs: externalAPIs,
+		TempDir:      tempDir,
+		OutputDir:    outputDir,
+		R2Upload:     externalAPIs.R2AccountID != "",
 	}
 }
 
@@ -55,6 +55,19 @@ func (yp *YouTubeProcessor) ProcessYouTubeVideo(db *gorm.DB, videoID uuid.UUID) 
 	if err := yp.downloadVideo(db, &video, &job); err != nil {
 		yp.updateJobError(db, &job, video, "download", err.Error())
 		return
+	}
+
+	rules := getVideoRules(db, video.UserID)
+
+	if maxDurationStr, ok := rules["max_video_duration_sec"]; ok {
+		var maxDuration float64
+		fmt.Sscanf(maxDurationStr, "%f", &maxDuration)
+		if maxDuration > 0 && video.Duration > maxDuration {
+			yp.updateJobError(db, &job, video, "duration_check",
+				fmt.Sprintf("Video duration %.0fs exceeds maximum allowed %.0fs", video.Duration, maxDuration))
+			os.Remove(video.LocalFilePath)
+			return
+		}
 	}
 
 	video.Status = "transcribing"
@@ -180,22 +193,25 @@ func (yp *YouTubeProcessor) findInterestingSegments(db *gorm.DB, video *models.Y
 }
 
 func (yp *YouTubeProcessor) createAndUploadClips(db *gorm.DB, video *models.YouTubeVideo, job *models.ProcessingJob, segments []models.VideoSegment) error {
+	rules := getVideoRules(db, video.UserID)
+	clipQuality := rules["clip_quality"]
+
 	for i, segment := range segments {
 		clipPath := filepath.Join(yp.OutputDir, fmt.Sprintf("%s_clip_%d.mp4", video.ID.String(), i+1))
 
 		clipper := NewVideoClipper()
-		if err := clipper.CutVideo(video.LocalFilePath, clipPath, segment.StartTime, segment.EndTime); err != nil {
+		if err := clipper.CutVideo(video.LocalFilePath, clipPath, segment.StartTime, segment.EndTime, clipQuality); err != nil {
 			log.Printf("Failed to cut clip %d: %v", i+1, err)
 			continue
 		}
 
 		segment.Status = "created"
 
-		if yp.CloudinaryUpload {
-			uploader := NewCloudinaryUploader(yp.ExternalAPIs)
-			clipURL, err := uploader.Upload(clipPath, fmt.Sprintf("youtube_clips/%s", video.ID.String()))
+		if yp.R2Upload {
+			key := fmt.Sprintf("clips/%s/%s_clip_%d.mp4", video.ID.String(), video.ID.String(), i+1)
+			clipURL, err := UploadToR2Static(clipPath, key)
 			if err != nil {
-				log.Printf("Failed to upload clip %d to Cloudinary: %v", i+1, err)
+				log.Printf("Failed to upload clip %d to R2: %v", i+1, err)
 				segment.Status = "created_local"
 			} else {
 				segment.ClipURL = clipURL
@@ -212,7 +228,41 @@ func (yp *YouTubeProcessor) createAndUploadClips(db *gorm.DB, video *models.YouT
 		db.Model(job).Update("progress", job.Progress)
 	}
 
+	addStorageUsage(db, video.UserID, video.FileSize)
+
 	return nil
+}
+
+func addStorageUsage(db *gorm.DB, userID uuid.UUID, fileSize int64) {
+	var subscription models.UserSubscription
+	if err := db.Where("user_id = ? AND status = ?", userID, "active").
+		Order("end_date DESC").First(&subscription).Error; err != nil {
+		return
+	}
+	db.Model(&subscription).Update("storage_used_bytes", gorm.Expr("storage_used_bytes + ?", fileSize))
+}
+
+func getVideoRules(db *gorm.DB, userID uuid.UUID) map[string]string {
+	var subscription models.UserSubscription
+	if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+		userID, "active", time.Now()).
+		Order("end_date DESC").First(&subscription).Error; err != nil {
+		return nil
+	}
+
+	var plan models.SubscriptionPlan
+	if err := db.Where("name = ?", subscription.PlanName).First(&plan).Error; err != nil {
+		return nil
+	}
+
+	var rules []models.SubscriptionRule
+	db.Where("plan_id = ?", plan.ID).Find(&rules)
+
+	rulesMap := make(map[string]string)
+	for _, r := range rules {
+		rulesMap[r.RuleKey] = r.RuleValue
+	}
+	return rulesMap
 }
 
 func (yp *YouTubeProcessor) updateJobError(db *gorm.DB, job *models.ProcessingJob, video models.YouTubeVideo, stage string, errMsg string) {

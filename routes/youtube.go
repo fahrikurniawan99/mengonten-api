@@ -1,15 +1,11 @@
 package routes
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strings"
 
-	"github.com/cloudinary/cloudinary-go/v2"
-	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -64,6 +60,27 @@ func SubmitYouTubeVideo(db *gorm.DB, processor *worker.YouTubeProcessor) gin.Han
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
 			return
+		}
+
+		rules := GetUserSubscriptionRules(db, userID.(uuid.UUID))
+		if rules == nil {
+			utils.ErrorResponse(c, http.StatusForbidden, "No active subscription. Please subscribe first.")
+			return
+		}
+		if maxStorageStr, ok := rules["max_storage_mb"]; ok {
+			var maxStorageMB int
+			fmt.Sscanf(maxStorageStr, "%d", &maxStorageMB)
+
+			var subscription models.UserSubscription
+			if err := db.Where("user_id = ? AND status = ?", userID, "active").
+				Order("end_date DESC").First(&subscription).Error; err == nil {
+				usedMB := float64(subscription.StorageUsedBytes) / (1024 * 1024)
+				if maxStorageMB > 0 && int(usedMB) >= maxStorageMB {
+					utils.ErrorResponse(c, http.StatusForbidden,
+						fmt.Sprintf("Storage limit reached (%dMB / %dMB). Please wait or upgrade your plan.", int(usedMB), maxStorageMB))
+					return
+				}
+			}
 		}
 
 		video := models.YouTubeVideo{
@@ -252,30 +269,19 @@ func deleteFromCloudinary(url string) error {
 	}
 
 	externalAPIs := config.InitExternalAPIs()
-	if externalAPIs.CloudinaryName == "" {
-		return fmt.Errorf("cloudinary not configured")
+	if externalAPIs.R2AccountID == "" {
+		return fmt.Errorf("R2 not configured")
 	}
 
-	parts := strings.Split(url, "/")
-	if len(parts) < 2 {
-		return fmt.Errorf("invalid Cloudinary URL")
+	publicURL := externalAPIs.R2PublicURL
+	publicURL = strings.TrimRight(publicURL, "/")
+
+	if !strings.HasPrefix(url, publicURL) {
+		return fmt.Errorf("URL does not belong to R2 storage")
 	}
 
-	publicID := parts[len(parts)-1]
-	publicID = strings.TrimSuffix(publicID, filepath.Ext(publicID))
+	key := strings.TrimPrefix(url, publicURL+"/")
+	key = strings.TrimPrefix(key, "/")
 
-	folderParts := parts[3 : len(parts)-1]
-	folder := strings.Join(folderParts, "/")
-	fullPublicID := folder + "/" + publicID
-
-	cld, err := cloudinary.NewFromURL(fmt.Sprintf("cloudinary://%s:%s@%s",
-		externalAPIs.CloudinaryKey, externalAPIs.CloudinarySecret, externalAPIs.CloudinaryName))
-	if err != nil {
-		return fmt.Errorf("cloudinary init error: %v", err)
-	}
-
-	_, err = cld.Upload.Destroy(context.Background(), uploader.DestroyParams{
-		PublicID: fullPublicID,
-	})
-	return err
+	return worker.DeleteFromR2(key)
 }

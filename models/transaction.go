@@ -46,9 +46,10 @@ type UserSubscription struct {
 	PlanType     string     `json:"plan_type"`
 	PlanBenefits string     `gorm:"type:text" json:"-"`
 	BenefitsList []string   `gorm:"-" json:"plan_benefits"`
-	PlanPrice    float64    `json:"plan_price"`
-	PlanDuration int        `json:"plan_duration"`
-	Status       string     `gorm:"default:'active';not null" json:"status"`
+	PlanPrice      float64    `json:"plan_price"`
+	PlanDuration   int        `json:"plan_duration"`
+	StorageUsedBytes int64    `gorm:"default:0" json:"storage_used_bytes"`
+	Status         string     `gorm:"default:'active';not null" json:"status"`
 	StartDate    time.Time  `json:"start_date"`
 	EndDate      time.Time  `json:"end_date"`
 	CreatedAt    time.Time  `json:"created_at"`

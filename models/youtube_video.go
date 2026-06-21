@@ -7,16 +7,18 @@ import (
 )
 
 type YouTubeVideo struct {
-	ID             uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID         uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
-	YouTubeURL     string    `gorm:"not null" json:"youtube_url"`
-	Title          string    `json:"title"`
-	Genre          string    `json:"genre"`
-	Status         string    `gorm:"default:'pending'" json:"status"`
-	LocalFilePath  string    `json:"local_file_path"`
+	ID             uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID         uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
+	YouTubeURL     string     `gorm:"not null" json:"youtube_url"`
+	Title          string     `json:"title"`
+	Genre          string     `json:"genre"`
+	Status         string     `gorm:"default:'pending'" json:"status"`
+	LocalFilePath  string     `json:"local_file_path"`
+	Duration       float64    `json:"duration"`
+	FileSize       int64      `json:"file_size"`
 	ProcessedAt    *time.Time `json:"processed_at"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type VideoTranscript struct {

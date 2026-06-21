@@ -22,6 +22,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	user.Use(middleware.AuthWithAccountStatusCheck(db))
 	{
 		user.GET("/profile", GetProfile(db))
+		user.GET("/youtube", GetMyVideos(db))
 		user.POST("/youtube/submit", middleware.RequireActiveSubscription(db), SubmitYouTubeVideo(db, youtubeProcessor))
 		user.GET("/youtube/:video_id", GetYouTubeVideo(db))
 		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
@@ -53,6 +54,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		admin.PUT("/users/:user_id/warn", WarnUser(db))
 		admin.PUT("/users/:user_id/deactivate", DeactivateUser(db))
 		admin.PUT("/users/:user_id/reactivate", ReactivateUser(db))
+
+		admin.GET("/videos", GetAllVideos(db))
 
 		admin.GET("/bank-accounts", GetBankAccounts(db))
 		admin.POST("/bank-accounts", CreateBankAccount(db))

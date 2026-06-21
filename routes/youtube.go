@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -284,4 +285,181 @@ func deleteFromCloudinary(url string) error {
 	key = strings.TrimPrefix(key, "/")
 
 	return worker.DeleteFromR2(key)
+}
+
+type VideoListResponse struct {
+	ID          uuid.UUID `json:"id"`
+	YouTubeURL string    `json:"youtube_url"`
+	Title       string    `json:"title"`
+	Genre       string    `json:"genre"`
+	Status      string    `json:"status"`
+	Duration    float64   `json:"duration"`
+	ClipsCount  int       `json:"clips_count"`
+	CreatedAt   string    `json:"created_at"`
+}
+
+// @Summary List my videos
+// @Description List video milik user sendiri dengan pagination
+// @Tags YouTube
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(10)
+// @Param status query string false "Filter by status"
+// @Param search query string false "Search by title/genre"
+// @Success 200 {object} utils.Response "Video list with pagination"
+// @Router /api/youtube [get]
+func GetMyVideos(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		status := c.Query("status")
+		search := c.Query("search")
+
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 10
+		}
+
+		query := db.Where("user_id = ?", userID)
+
+		if status != "" {
+			query = query.Where("status = ?", status)
+		}
+		if search != "" {
+			query = query.Where("LOWER(title) LIKE ? OR LOWER(genre) LIKE ?",
+				"%"+strings.ToLower(search)+"%",
+				"%"+strings.ToLower(search)+"%")
+		}
+
+		var total int64
+		query.Model(&models.YouTubeVideo{}).Count(&total)
+
+		var videos []models.YouTubeVideo
+		offset := (page - 1) * limit
+		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&videos).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch videos")
+			return
+		}
+
+		response := make([]VideoListResponse, len(videos))
+		for i, v := range videos {
+			var clipsCount int64
+			db.Model(&models.VideoSegment{}).Where("video_id = ?", v.ID).Count(&clipsCount)
+
+			response[i] = VideoListResponse{
+				ID:          v.ID,
+				YouTubeURL:  v.YouTubeURL,
+				Title:       v.Title,
+				Genre:       v.Genre,
+				Status:      v.Status,
+				Duration:    v.Duration,
+				ClipsCount:  int(clipsCount),
+				CreatedAt:   v.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+		}
+
+		totalPages := int(total) / limit
+		if int(total)%limit != 0 {
+			totalPages++
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Videos retrieved", map[string]interface{}{
+			"videos": response,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"limit":       limit,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		})
+	}
+}
+
+// @Summary List all videos (admin)
+// @Description List semua video dari semua user
+// @Tags Admin
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(10)
+// @Param status query string false "Filter by status"
+// @Param search query string false "Search by title/genre"
+// @Success 200 {object} utils.Response "Video list with pagination"
+// @Router /api/admin/videos [get]
+func GetAllVideos(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+		status := c.Query("status")
+		search := c.Query("search")
+
+		if page < 1 {
+			page = 1
+		}
+		if limit < 1 || limit > 100 {
+			limit = 10
+		}
+
+		query := db.Model(&models.YouTubeVideo{})
+
+		if status != "" {
+			query = query.Where("status = ?", status)
+		}
+		if search != "" {
+			query = query.Where("LOWER(title) LIKE ? OR LOWER(genre) LIKE ?",
+				"%"+strings.ToLower(search)+"%",
+				"%"+strings.ToLower(search)+"%")
+		}
+
+		var total int64
+		query.Count(&total)
+
+		var videos []models.YouTubeVideo
+		offset := (page - 1) * limit
+		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&videos).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch videos")
+			return
+		}
+
+		response := make([]VideoListResponse, len(videos))
+		for i, v := range videos {
+			var clipsCount int64
+			db.Model(&models.VideoSegment{}).Where("video_id = ?", v.ID).Count(&clipsCount)
+
+			response[i] = VideoListResponse{
+				ID:          v.ID,
+				YouTubeURL:  v.YouTubeURL,
+				Title:       v.Title,
+				Genre:       v.Genre,
+				Status:      v.Status,
+				Duration:    v.Duration,
+				ClipsCount:  int(clipsCount),
+				CreatedAt:   v.CreatedAt.Format("2006-01-02 15:04:05"),
+			}
+		}
+
+		totalPages := int(total) / limit
+		if int(total)%limit != 0 {
+			totalPages++
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Videos retrieved", map[string]interface{}{
+			"videos": response,
+			"pagination": map[string]interface{}{
+				"page":        page,
+				"limit":       limit,
+				"total":       total,
+				"total_pages": totalPages,
+			},
+		})
+	}
 }

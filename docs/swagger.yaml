@@ -886,6 +886,40 @@ paths:
       summary: Warn user (admin)
       tags:
       - Admin
+  /api/admin/videos:
+    get:
+      description: List semua video dari semua user
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Search by title/genre
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video list with pagination
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: List all videos (admin)
+      tags:
+      - Admin
   /api/auth/admin/login:
     post:
       consumes:
@@ -1330,6 +1364,40 @@ paths:
       summary: Check preview status (user)
       tags:
       - Transaction
+  /api/youtube:
+    get:
+      description: List video milik user sendiri dengan pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Search by title/genre
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Video list with pagination
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: List my videos
+      tags:
+      - YouTube
   /api/youtube/{video_id}:
     get:
       description: Get YouTube video info dan list generated clips

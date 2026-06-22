@@ -12,7 +12,7 @@ API untuk auto-clipping video YouTube dengan AI genre detection dan content anal
 
 ## Tech Stack
 
-- **Language:** Go 1.23.1+
+- **Language:** Go 1.25.0+
 - **Framework:** Gin
 - **Database:** PostgreSQL + GORM
 - **AI Services:** OpenAI Whisper (transcription) + GPT-4 (analysis)

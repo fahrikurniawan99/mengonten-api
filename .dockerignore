@@ -5,7 +5,6 @@
 !.env.example
 bin/
 dist/
-docs/
 uploads/
 *.exe
 *.test

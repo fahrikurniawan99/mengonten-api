@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"mengonten-api/middleware"
@@ -8,6 +11,21 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender) {
+	r.GET("/health", func(c *gin.Context) {
+		sqlDB, err := db.DB()
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "message": "database unavailable"})
+			return
+		}
+		if err := sqlDB.Ping(); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "message": "database unreachable"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "ok",
+			"time":   time.Now().UTC().Format(time.RFC3339),
+		})
+	})
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", Register(db, emailSender))

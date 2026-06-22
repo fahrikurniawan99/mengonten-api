@@ -20,9 +20,6 @@ dist/
 *.dylib
 vendor/
 
-# Swagger docs (generated)
-docs/
-
 # Logs
 *.log
 

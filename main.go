@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -14,6 +18,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	_ "mengonten-api/docs"
 	"mengonten-api/config"
+	"mengonten-api/middleware"
 	"mengonten-api/models"
 	"mengonten-api/routes"
 	"mengonten-api/worker"
@@ -51,11 +56,15 @@ func main() {
 	resendConfig := config.InitResend()
 	emailSender := worker.NewEmailSender(resendConfig)
 
-	gin.SetMode(os.Getenv("GIN_MODE"))
+	ginMode := os.Getenv("GIN_MODE")
+	gin.SetMode(ginMode)
 	r := gin.Default()
 
 	corsOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
 	if len(corsOrigins) == 0 || corsOrigins[0] == "" {
+		if ginMode == "release" {
+			log.Fatal("CORS_ORIGINS must be set in production mode")
+		}
 		corsOrigins = []string{"*"}
 	}
 
@@ -68,7 +77,11 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.Use(middleware.RateLimit(100, time.Minute))
+
+	if ginMode != "release" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender)
 
@@ -77,8 +90,32 @@ func main() {
 		port = "8080"
 	}
 
-	fmt.Printf("Server running on port %s\n", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal("Server failed to start:", err)
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      r,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
+
+	go func() {
+		fmt.Printf("Server running on port %s (mode: %s)\n", port, ginMode)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Server exited")
 }

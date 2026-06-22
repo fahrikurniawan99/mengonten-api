@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"time"
 )
@@ -13,7 +14,7 @@ type JWTConfig struct {
 func GetJWTConfig() JWTConfig {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "your-secret-key-change-in-production"
+		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
 	return JWTConfig{

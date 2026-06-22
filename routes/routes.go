@@ -40,6 +40,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	user.Use(middleware.AuthWithAccountStatusCheck(db))
 	{
 		user.GET("/profile", GetProfile(db))
+		user.PUT("/profile/username", UpdateUsername(db))
 		user.GET("/youtube", GetMyVideos(db))
 		user.POST("/youtube/submit", middleware.RequireActiveSubscription(db), SubmitYouTubeVideo(db, youtubeProcessor))
 		user.GET("/youtube/:video_id", GetYouTubeVideo(db))

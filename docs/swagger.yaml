@@ -203,6 +203,14 @@ definitions:
     required:
     - status
     type: object
+  routes.UpdateUsernameRequest:
+    properties:
+      username:
+        minLength: 3
+        type: string
+    required:
+    - username
+    type: object
   routes.UserResponse:
     properties:
       account_status:
@@ -1143,6 +1151,43 @@ paths:
       security:
       - Bearer: []
       summary: Get user profile
+      tags:
+      - Auth
+  /api/profile/username:
+    put:
+      consumes:
+      - application/json
+      description: Update authenticated user's username
+      parameters:
+      - description: New username
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.UpdateUsernameRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Username updated
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.UserResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/utils.Response'
+        "409":
+          description: Username already taken
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Update username
       tags:
       - Auth
   /api/subscription-plans:

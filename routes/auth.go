@@ -259,6 +259,74 @@ func generateToken(userID uuid.UUID) string {
 	return tokenString
 }
 
+type UpdateUsernameRequest struct {
+	Username string `json:"username" binding:"required,min=3"`
+}
+
+// @Summary Update username
+// @Description Update authenticated user's username
+// @Tags Auth
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param request body UpdateUsernameRequest true "New username"
+// @Success 200 {object} utils.Response{data=UserResponse} "Username updated"
+// @Failure 400 {object} utils.Response "Invalid request"
+// @Failure 409 {object} utils.Response "Username already taken"
+// @Router /api/profile/username [put]
+func UpdateUsername(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
+		var req UpdateUsernameRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "User not found")
+			return
+		}
+
+		if user.Username == req.Username {
+			utils.SuccessResponse(c, http.StatusOK, "Username is the same", UserResponse{
+				ID:             user.ID,
+				Email:          user.Email,
+				Username:       user.Username,
+				Role:           user.Role,
+				AccountStatus:  user.AccountStatus,
+				WarningMessage: user.WarningMessage,
+				IsVerified:     user.IsVerified,
+			})
+			return
+		}
+
+		var existing models.User
+		if err := db.Where("username = ?", req.Username).First(&existing).Error; err == nil {
+			utils.ErrorResponse(c, http.StatusConflict, "Username already taken")
+			return
+		}
+
+		db.Model(&user).Update("username", req.Username)
+
+		utils.SuccessResponse(c, http.StatusOK, "Username updated successfully", UserResponse{
+			ID:             user.ID,
+			Email:          user.Email,
+			Username:       req.Username,
+			Role:           user.Role,
+			AccountStatus:  user.AccountStatus,
+			WarningMessage: user.WarningMessage,
+			IsVerified:     user.IsVerified,
+		})
+	}
+}
+
 type VerifyEmailRequest struct {
 	Token string `json:"token" binding:"required"`
 }

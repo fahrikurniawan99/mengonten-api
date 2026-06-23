@@ -68,7 +68,7 @@ jobs:
               systemctl enable --now docker
             fi
 
-            # Ensure docker compose plugin is installed
+            # Ensure docker compose plugin
             if ! docker compose version &> /dev/null; then
               apt-get update -qq && apt-get install -y -qq docker-compose-plugin
             fi
@@ -81,21 +81,10 @@ jobs:
             git fetch origin staging
             git reset --hard origin/staging
 
-            # Create .env from secrets if not exists
+            # .env must exist (create manually on first setup)
             if [ ! -f .env ]; then
-              cat > .env << ENVEOF
-DB_HOST=postgres
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-DB_NAME=mengonten_db
-DB_SSLMODE=disable
-JWT_SECRET=${{ secrets.JWT_SECRET }}
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-GIN_MODE=release
-PORT=8080
-CORS_ORIGINS=https://api-mengonten.tiroe.io
-ENVEOF
+              echo "ERROR: .env not found in /opt/mengonten-api. Create it from secrets." >&2
+              exit 1
             fi
 
             # Login to GHCR
@@ -104,9 +93,5 @@ ENVEOF
             # Pull and restart
             docker compose pull
             docker compose up -d --remove-orphans
-
-            # Wait for health check
             sleep 10
-
-            # Verify
             docker compose ps

@@ -14,7 +14,7 @@ type CreatePlanRequest struct {
 	Name            string  `json:"name" binding:"required"`
 	Description     string  `json:"description"`
 	Benefits        string  `json:"benefits" binding:"required"`
-	FinalPrice      float64 `json:"price" binding:"required,gte=0"`
+	FinalPrice      float64 `json:"price" binding:"gte=0"`
 	DiscountPercent float64 `json:"discount_percent" binding:"omitempty,min=0,max=100"`
 	Type            string  `json:"type" binding:"required"`
 	DurationDays    int     `json:"duration_days" binding:"required,gt=0"`

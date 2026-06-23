@@ -1,7 +1,6 @@
 package models
 
 import (
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,8 +10,8 @@ type SubscriptionPlan struct {
 	ID               uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	Name             string    `gorm:"not null" json:"name"`
 	Description      string    `json:"description"`
-	Benefits         string    `gorm:"type:text" json:"-"`
-	BenefitsList     []string  `gorm:"-" json:"benefits"`
+	Benefits         string    `gorm:"type:text" json:"benefits"`
+	BenefitsList     []string  `gorm:"-" json:"-"`
 	Price            float64   `gorm:"not null" json:"price"`
 	DiscountPercent  float64   `gorm:"default:0" json:"discount_percent"`
 	FinalPrice       float64   `gorm:"not null" json:"final_price"`
@@ -29,10 +28,6 @@ func (SubscriptionPlan) TableName() string {
 }
 
 func (p *SubscriptionPlan) PrepareResponse() {
-	p.BenefitsList = strings.Split(p.Benefits, ",")
-	for i := range p.BenefitsList {
-		p.BenefitsList[i] = strings.TrimSpace(p.BenefitsList[i])
-	}
 	origPrice := p.Price
 	if p.DiscountPercent > 0 {
 		if p.FinalPrice > 0 {

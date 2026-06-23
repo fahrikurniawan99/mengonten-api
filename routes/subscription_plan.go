@@ -1,9 +1,7 @@
 package routes
 
 import (
-	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,44 +10,28 @@ import (
 	"mengonten-api/utils"
 )
 
-type BenefitsField string
-
-func (b *BenefitsField) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err == nil {
-		*b = BenefitsField(s)
-		return nil
-	}
-	var arr []string
-	if err := json.Unmarshal(data, &arr); err != nil {
-		return err
-	}
-	*b = BenefitsField(strings.Join(arr, ","))
-	return nil
-}
-
 type CreatePlanRequest struct {
-	Name            string        `json:"name" binding:"required"`
-	Description     string        `json:"description"`
-	Benefits        BenefitsField `json:"benefits" binding:"required"`
-	FinalPrice      float64       `json:"price" binding:"gte=0"`
-	DiscountPercent float64       `json:"discount_percent" binding:"omitempty,min=0,max=100"`
-	Type            string        `json:"type" binding:"required"`
-	DurationDays    int           `json:"duration_days" binding:"required,gt=0"`
-	IsActive        *bool         `json:"is_active" binding:"omitempty"`
-	SortOrder       int           `json:"sort_order"`
+	Name            string  `json:"name" binding:"required"`
+	Description     string  `json:"description"`
+	Benefits        string  `json:"benefits" binding:"required"`
+	FinalPrice      float64 `json:"price" binding:"gte=0"`
+	DiscountPercent float64 `json:"discount_percent" binding:"omitempty,min=0,max=100"`
+	Type            string  `json:"type" binding:"required"`
+	DurationDays    int     `json:"duration_days" binding:"required,gt=0"`
+	IsActive        *bool   `json:"is_active" binding:"omitempty"`
+	SortOrder       int     `json:"sort_order"`
 }
 
 type UpdatePlanRequest struct {
-	Name            string        `json:"name" binding:"omitempty"`
-	Description     string        `json:"description" binding:"omitempty"`
-	Benefits        BenefitsField `json:"benefits" binding:"omitempty"`
-	FinalPrice      *float64      `json:"price" binding:"omitempty"`
-	DiscountPercent float64       `json:"discount_percent" binding:"omitempty,min=0,max=100"`
-	Type            string        `json:"type" binding:"omitempty"`
-	DurationDays    int           `json:"duration_days" binding:"omitempty,gt=0"`
-	IsActive        *bool         `json:"is_active" binding:"omitempty"`
-	SortOrder       int           `json:"sort_order" binding:"omitempty"`
+	Name            string   `json:"name" binding:"omitempty"`
+	Description     string   `json:"description" binding:"omitempty"`
+	Benefits        string   `json:"benefits" binding:"omitempty"`
+	FinalPrice      *float64 `json:"price" binding:"omitempty"`
+	DiscountPercent float64  `json:"discount_percent" binding:"omitempty,min=0,max=100"`
+	Type            string   `json:"type" binding:"omitempty"`
+	DurationDays    int      `json:"duration_days" binding:"omitempty,gt=0"`
+	IsActive        *bool    `json:"is_active" binding:"omitempty"`
+	SortOrder       int      `json:"sort_order" binding:"omitempty"`
 }
 
 // @Summary Get all subscription plans (admin)
@@ -118,7 +100,7 @@ func CreatePlan(db *gorm.DB) gin.HandlerFunc {
 	plan := models.SubscriptionPlan{
 		Name:            req.Name,
 		Description:     req.Description,
-		Benefits:        string(req.Benefits),
+		Benefits:        req.Benefits,
 		Price:           req.FinalPrice,
 		DiscountPercent: req.DiscountPercent,
 		Type:            req.Type,
@@ -182,7 +164,7 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 			updates["description"] = req.Description
 		}
 		if req.Benefits != "" {
-			updates["benefits"] = string(req.Benefits)
+			updates["benefits"] = req.Benefits
 		}
 		if req.FinalPrice != nil {
 			updates["price"] = *req.FinalPrice

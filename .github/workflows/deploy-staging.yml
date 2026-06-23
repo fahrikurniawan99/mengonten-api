@@ -15,9 +15,6 @@ jobs:
       contents: read
       packages: write
 
-    outputs:
-      image_tag: ${{ steps.meta.outputs.tags }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,19 +60,53 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -e
+
+            # Ensure Docker is installed
+            if ! command -v docker &> /dev/null; then
+              curl -fsSL https://get.docker.com | sh
+              systemctl enable --now docker
+            fi
+
+            # Ensure docker compose plugin is installed
+            if ! docker compose version &> /dev/null; then
+              apt-get update -qq && apt-get install -y -qq docker-compose-plugin
+            fi
+
+            # Clone or pull repo
+            if [ ! -d /opt/mengonten-api/.git ]; then
+              git clone -b staging https://github.com/${{ github.repository }} /opt/mengonten-api
+            fi
             cd /opt/mengonten-api
-            
+            git fetch origin staging
+            git reset --hard origin/staging
+
+            # Create .env from secrets if not exists
+            if [ ! -f .env ]; then
+              cat > .env << ENVEOF
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+DB_NAME=mengonten_db
+DB_SSLMODE=disable
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+GIN_MODE=release
+PORT=8080
+CORS_ORIGINS=https://api-mengonten.tiroe.io
+ENVEOF
+            fi
+
             # Login to GHCR
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
-            
-            # Pull latest image
-            docker compose pull api
-            
-            # Restart only api service
-            docker compose up -d --no-deps api
-            
+
+            # Pull and restart
+            docker compose pull
+            docker compose up -d --remove-orphans
+
             # Wait for health check
             sleep 10
-            
-            # Verify container is healthy
-            docker compose ps api
+
+            # Verify
+            docker compose ps

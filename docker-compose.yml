@@ -1,6 +1,6 @@
 services:
   api:
-    build: .
+    image: ghcr.io/fahrikurniawan99/mengonten-api:staging
     container_name: mengonten-api
     restart: always
     ports:
@@ -15,7 +15,7 @@ services:
     volumes:
       - uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

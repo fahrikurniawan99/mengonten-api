@@ -14,10 +14,11 @@ type CreatePlanRequest struct {
 	Name            string  `json:"name" binding:"required"`
 	Description     string  `json:"description"`
 	Benefits        string  `json:"benefits" binding:"required"`
-	FinalPrice      float64 `json:"final_price" binding:"required,gt=0"`
+	FinalPrice      float64 `json:"price" binding:"required,gte=0"`
 	DiscountPercent float64 `json:"discount_percent" binding:"omitempty,min=0,max=100"`
 	Type            string  `json:"type" binding:"required"`
 	DurationDays    int     `json:"duration_days" binding:"required,gt=0"`
+	IsActive        *bool   `json:"is_active" binding:"omitempty"`
 	SortOrder       int     `json:"sort_order"`
 }
 
@@ -91,17 +92,22 @@ func CreatePlan(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		plan := models.SubscriptionPlan{
-			Name:            req.Name,
-			Description:     req.Description,
-			Benefits:        req.Benefits,
-			Price:           req.FinalPrice,
-			DiscountPercent: req.DiscountPercent,
-			Type:            req.Type,
-			DurationDays:    req.DurationDays,
-			SortOrder:       req.SortOrder,
-			IsActive:        true,
-		}
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
+	plan := models.SubscriptionPlan{
+		Name:            req.Name,
+		Description:     req.Description,
+		Benefits:        req.Benefits,
+		Price:           req.FinalPrice,
+		DiscountPercent: req.DiscountPercent,
+		Type:            req.Type,
+		DurationDays:    req.DurationDays,
+		SortOrder:       req.SortOrder,
+		IsActive:        isActive,
+	}
 
 		if req.DiscountPercent > 0 {
 			plan.FinalPrice = req.FinalPrice / (1 - req.DiscountPercent/100)

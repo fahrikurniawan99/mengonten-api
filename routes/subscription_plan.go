@@ -109,10 +109,9 @@ func CreatePlan(db *gorm.DB) gin.HandlerFunc {
 		IsActive:        isActive,
 	}
 
+		plan.FinalPrice = req.FinalPrice
 		if req.DiscountPercent > 0 {
-			plan.FinalPrice = req.FinalPrice / (1 - req.DiscountPercent/100)
-		} else {
-			plan.FinalPrice = req.FinalPrice
+			plan.FinalPrice = req.FinalPrice * (1 - req.DiscountPercent/100)
 		}
 
 		if err := db.Create(&plan).Error; err != nil {
@@ -173,7 +172,7 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 				discount = plan.DiscountPercent
 			}
 			if discount > 0 {
-				updates["final_price"] = *req.FinalPrice / (1 - discount/100)
+				updates["final_price"] = *req.FinalPrice * (1 - discount/100)
 			} else {
 				updates["final_price"] = *req.FinalPrice
 			}
@@ -181,7 +180,7 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 		if req.DiscountPercent > 0 {
 			updates["discount_percent"] = req.DiscountPercent
 			if req.FinalPrice == nil {
-				updates["final_price"] = plan.Price / (1 - req.DiscountPercent/100)
+				updates["final_price"] = plan.Price * (1 - req.DiscountPercent/100)
 			}
 		}
 		if req.Type != "" {

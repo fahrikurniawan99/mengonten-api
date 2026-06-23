@@ -14,7 +14,7 @@ type CreatePlanRequest struct {
 	Name            string  `json:"name" binding:"required"`
 	Description     string  `json:"description"`
 	Benefits        string  `json:"benefits" binding:"required"`
-	FinalPrice      float64 `json:"price" binding:"required,gte=0"`
+	FinalPrice      float64 `json:"price" binding:"gte=0"`
 	DiscountPercent float64 `json:"discount_percent" binding:"omitempty,min=0,max=100"`
 	Type            string  `json:"type" binding:"required"`
 	DurationDays    int     `json:"duration_days" binding:"required,gt=0"`
@@ -23,15 +23,15 @@ type CreatePlanRequest struct {
 }
 
 type UpdatePlanRequest struct {
-	Name            string  `json:"name" binding:"omitempty"`
-	Description     string  `json:"description" binding:"omitempty"`
-	Benefits        string  `json:"benefits" binding:"omitempty"`
-	FinalPrice      float64 `json:"final_price" binding:"omitempty,gt=0"`
-	DiscountPercent float64 `json:"discount_percent" binding:"omitempty,min=0,max=100"`
-	Type            string  `json:"type" binding:"omitempty"`
-	DurationDays    int     `json:"duration_days" binding:"omitempty,gt=0"`
-	IsActive        *bool   `json:"is_active" binding:"omitempty"`
-	SortOrder       int     `json:"sort_order" binding:"omitempty"`
+	Name            string   `json:"name" binding:"omitempty"`
+	Description     string   `json:"description" binding:"omitempty"`
+	Benefits        string   `json:"benefits" binding:"omitempty"`
+	FinalPrice      *float64 `json:"price" binding:"omitempty"`
+	DiscountPercent float64  `json:"discount_percent" binding:"omitempty,min=0,max=100"`
+	Type            string   `json:"type" binding:"omitempty"`
+	DurationDays    int      `json:"duration_days" binding:"omitempty,gt=0"`
+	IsActive        *bool    `json:"is_active" binding:"omitempty"`
+	SortOrder       int      `json:"sort_order" binding:"omitempty"`
 }
 
 // @Summary Get all subscription plans (admin)
@@ -166,24 +166,23 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 		if req.Benefits != "" {
 			updates["benefits"] = req.Benefits
 		}
-		if req.FinalPrice > 0 {
-			updates["price"] = req.FinalPrice
+		if req.FinalPrice != nil {
+			updates["price"] = *req.FinalPrice
 			discount := req.DiscountPercent
 			if discount == 0 {
 				discount = plan.DiscountPercent
 			}
 			if discount > 0 {
-				updates["final_price"] = req.FinalPrice / (1 - discount/100)
+				updates["final_price"] = *req.FinalPrice / (1 - discount/100)
 			} else {
-				updates["final_price"] = req.FinalPrice
+				updates["final_price"] = *req.FinalPrice
 			}
 		}
-		if req.DiscountPercent > 0 && req.FinalPrice == 0 {
+		if req.DiscountPercent > 0 {
 			updates["discount_percent"] = req.DiscountPercent
-			sellingPrice := plan.Price
-			updates["final_price"] = sellingPrice / (1 - req.DiscountPercent/100)
-		} else if req.DiscountPercent > 0 {
-			updates["discount_percent"] = req.DiscountPercent
+			if req.FinalPrice == nil {
+				updates["final_price"] = plan.Price / (1 - req.DiscountPercent/100)
+			}
 		}
 		if req.Type != "" {
 			updates["type"] = req.Type

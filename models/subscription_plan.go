@@ -1,7 +1,6 @@
 package models
 
 import (
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,18 +28,4 @@ func (SubscriptionPlan) TableName() string {
 }
 
 func (p *SubscriptionPlan) PrepareResponse() {
-	p.BenefitsList = strings.Split(p.Benefits, ",")
-	for i := range p.BenefitsList {
-		p.BenefitsList[i] = strings.TrimSpace(p.BenefitsList[i])
-	}
-	origPrice := p.Price
-	if p.DiscountPercent > 0 {
-		if p.FinalPrice > 0 {
-			origPrice = p.FinalPrice
-		} else {
-			origPrice = p.Price / (1 - p.DiscountPercent/100)
-		}
-	}
-	p.FinalPrice = p.Price
-	p.Price = origPrice
 }

@@ -83,6 +83,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 
 		admin.GET("/subscription-plans", GetPlansAdmin(db))
 		admin.POST("/subscription-plans", CreatePlan(db))
+		admin.PUT("/subscription-plans/reorder", ReorderPlans(db))
 		admin.PUT("/subscription-plans/:plan_id", UpdatePlan(db))
 		admin.DELETE("/subscription-plans/:plan_id", DeletePlan(db))
 		admin.GET("/subscription-plans/:plan_id/rules", GetPlanRules(db))

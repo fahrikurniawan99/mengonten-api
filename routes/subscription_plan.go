@@ -205,6 +205,54 @@ func UpdatePlan(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+type ReorderPlanItem struct {
+	ID        string `json:"id" binding:"required"`
+	SortOrder int    `json:"sort_order" binding:"required"`
+}
+
+type ReorderPlansRequest struct {
+	Plans []ReorderPlanItem `json:"plans" binding:"required,min=1,dive"`
+}
+
+// @Summary Reorder subscription plans (admin)
+// @Description Ubah urutan plans - admin only
+// @Tags Subscription Plan
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body ReorderPlansRequest true "Reorder data"
+// @Success 200 {object} utils.Response "Plans reordered"
+// @Router /api/admin/subscription-plans/reorder [put]
+func ReorderPlans(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req ReorderPlansRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		tx := db.Begin()
+		for _, item := range req.Plans {
+			parsedID, err := uuid.Parse(item.ID)
+			if err != nil {
+				tx.Rollback()
+				utils.ErrorResponse(c, http.StatusBadRequest, "Invalid plan ID: "+item.ID)
+				return
+			}
+			if err := tx.Model(&models.SubscriptionPlan{}).
+				Where("id = ?", parsedID).
+				Update("sort_order", item.SortOrder).Error; err != nil {
+				tx.Rollback()
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to reorder plans")
+				return
+			}
+		}
+		tx.Commit()
+
+		utils.SuccessResponse(c, http.StatusOK, "Plans reordered", nil)
+	}
+}
+
 // @Summary Delete subscription plan (admin)
 // @Description Hapus plan - admin only
 // @Tags Subscription Plan

@@ -21,13 +21,8 @@ func buildVerificationTemplate(username, verificationURL string) string {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
           <tr>
-            <td style="background:#FF0000;padding:36px 48px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
-                Mengonten
-              </h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">
-                Video Clipping Platform
-              </p>
+            <td style="padding:36px 48px;text-align:center;">
+              <img src="https://cdn-mengonten.tiroe.io/assets/logo_horizontal.png" alt="Mengonten" style="max-width:200px;height:auto;display:block;margin:0 auto;">
             </td>
           </tr>
 
@@ -102,13 +97,8 @@ func buildCheckoutTemplate(username, referenceID, planName, description string, 
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
           <tr>
-            <td style="background:#FF0000;padding:36px 48px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
-                Mengonten
-              </h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">
-                Video Clipping Platform
-              </p>
+            <td style="padding:36px 48px;text-align:center;">
+              <img src="https://cdn-mengonten.tiroe.io/assets/logo_horizontal.png" alt="Mengonten" style="max-width:200px;height:auto;display:block;margin:0 auto;">
             </td>
           </tr>
 
@@ -229,13 +219,8 @@ func buildWelcomeTemplate(username string) string {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
           <tr>
-            <td style="background:#FF0000;padding:36px 48px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
-                Mengonten
-              </h1>
-              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">
-                Video Clipping Platform
-              </p>
+            <td style="padding:36px 48px;text-align:center;">
+              <img src="https://cdn-mengonten.tiroe.io/assets/logo_horizontal.png" alt="Mengonten" style="max-width:200px;height:auto;display:block;margin:0 auto;">
             </td>
           </tr>
 

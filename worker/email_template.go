@@ -11,7 +11,7 @@ func buildVerificationTemplate(username, verificationURL string) string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify Your Email</title>
+  <title>Verifikasi Email - Mengonten</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f7fa;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
@@ -21,7 +21,7 @@ func buildVerificationTemplate(username, verificationURL string) string {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
           <tr>
-            <td style="background:linear-gradient(135deg,#667eea 0%%,#764ba2 100%%);padding:40px 48px;text-align:center;">
+            <td style="background:#FF0000;padding:36px 48px;text-align:center;">
               <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
                 Mengonten
               </h1>
@@ -34,27 +34,27 @@ func buildVerificationTemplate(username, verificationURL string) string {
           <tr>
             <td style="padding:48px;">
               <h2 style="margin:0 0 8px;color:#1a1a2e;font-size:24px;font-weight:600;">
-                Hi %s,
+                Hai %s,
               </h2>
               <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
-                Thanks for signing up! Please verify your email address to activate your account and start using Mengonten.
+                Terima kasih telah mendaftar! Silakan verifikasi alamat email kamu untuk mengaktifkan akun dan mulai menggunakan Mengonten.
               </p>
 
               <table width="100%%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding:8px 0 32px;">
                     <a href="%s"
-                       style="display:inline-block;background:linear-gradient(135deg,#667eea 0%%,#764ba2 100%%);color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:14px 48px;border-radius:10px;letter-spacing:0.3px;">
-                      Verify Email Address
+                       style="display:inline-block;background:#FF0000;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 48px;border-radius:10px;letter-spacing:0.5px;">
+                      VERIFIKASI EMAIL
                     </a>
                   </td>
                 </tr>
               </table>
 
               <p style="margin:0 0 8px;color:#94a3b8;font-size:13px;line-height:1.6;">
-                Or copy and paste this link into your browser:
+                Atau salin tautan berikut ke browser kamu:
               </p>
-              <p style="margin:0;color:#667eea;font-size:13px;word-break:break-all;">
+              <p style="margin:0;color:#dc2626;font-size:13px;word-break:break-all;">
                 %s
               </p>
             </td>
@@ -63,8 +63,8 @@ func buildVerificationTemplate(username, verificationURL string) string {
           <tr>
             <td style="background-color:#f8fafc;padding:24px 48px;border-top:1px solid #e2e8f0;">
               <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.6;">
-                This link expires in 24 hours.<br>
-                If you didn't create an account, you can safely ignore this email.
+                Tautan ini berlaku selama 24 jam.<br>
+                Jika kamu tidak membuat akun, abaikan email ini.
               </p>
             </td>
           </tr>
@@ -219,7 +219,7 @@ func buildWelcomeTemplate(username string) string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Mengonten</title>
+  <title>Selamat Datang - Mengonten</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f7fa;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 
@@ -229,32 +229,43 @@ func buildWelcomeTemplate(username string) string {
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
 
           <tr>
-            <td style="background:linear-gradient(135deg,#667eea 0%%,#764ba2 100%%);padding:40px 48px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;">
-                Welcome to Mengonten!
+            <td style="background:#FF0000;padding:36px 48px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:28px;font-weight:700;letter-spacing:-0.5px;">
+                Mengonten
               </h1>
+              <p style="margin:8px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">
+                Video Clipping Platform
+              </p>
             </td>
           </tr>
 
           <tr>
             <td style="padding:48px;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;font-weight:600;">
-                You're all set, %s!
+                Selamat datang, %s!
               </h2>
               <p style="margin:0 0 24px;color:#64748b;font-size:16px;line-height:1.6;">
-                Your email has been verified successfully. You can now enjoy all features of Mengonten, including AI-powered video clipping.
+                Email kamu berhasil diverifikasi. Kamu sekarang dapat menikmati semua fitur Mengonten, termasuk kliping video berbasis AI.
               </p>
 
-              <table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f0fdf4;border-radius:12px;border:1px solid #bbf7d0;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border-radius:12px;border:1px solid #fecaca;">
                 <tr>
                   <td style="padding:20px 24px;">
-                    <p style="margin:0;color:#166534;font-size:14px;line-height:1.6;">
-                      <strong>What's next?</strong><br>
-                      Submit a YouTube video URL and let our AI analyze the content to create the best clips automatically.
+                    <p style="margin:0;color:#dc2626;font-size:14px;line-height:1.6;">
+                      <strong>Langkah selanjutnya?</strong><br>
+                      Kirim URL YouTube dan biarkan AI kami menganalisis konten untuk membuat klip terbaik secara otomatis.
                     </p>
                   </td>
                 </tr>
               </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#f8fafc;padding:24px 48px;border-top:1px solid #e2e8f0;">
+              <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.6;">
+                Jika kamu memiliki pertanyaan, hubungi tim support kami.
+              </p>
             </td>
           </tr>
 

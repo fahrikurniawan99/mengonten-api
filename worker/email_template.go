@@ -121,12 +121,12 @@ func buildCheckoutTemplate(username, referenceID, planName, description string, 
                 Kami telah menerima pesanan kamu. Silakan lakukan pembayaran untuk melanjutkan.
               </p>
 
-              <p style="margin:20px 0;color:#1a1a2e;font-size:16px;font-weight:700;">
-                #%s
-              </p>
+               <p style="margin:20px 0;color:#1a1a2e;font-size:16px;font-weight:700;">
+                 #%s
+               </p>
 
-              <h3 style="margin:24px 0 12px;color:#1a1a2e;font-size:16px;font-weight:600;">
-                Detail Pesanan
+               <h3 style="margin:24px 0 12px;color:#1a1a2e;font-size:16px;font-weight:600;">
+                 Detail Pesanan
               </h3>
               <table width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                 <tr>
@@ -162,7 +162,7 @@ func buildCheckoutTemplate(username, referenceID, planName, description string, 
                   <td align="center">
                     <a href="%s"
                        style="display:inline-block;background:#FF0000;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:16px 48px;border-radius:10px;letter-spacing:0.5px;">
-                      LANJUTKAN PEMBAYARAN
+                       LANJUTKAN PEMBAYARAN
                     </a>
                   </td>
                 </tr>

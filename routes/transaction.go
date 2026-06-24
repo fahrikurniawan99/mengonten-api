@@ -260,7 +260,7 @@ func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		db.Where("user_id = ?", userID).Delete(&models.TransactionPreview{})
+		db.Where("expires_at < ?", time.Now()).Delete(&models.TransactionPreview{})
 
 		price := plan.FinalPrice
 

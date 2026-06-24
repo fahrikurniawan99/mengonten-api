@@ -77,6 +77,51 @@ func GetMyTransactions(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Get transaction detail with payment proof (user)
+// @Description Lihat detail transaksi + bukti transfer - milik user sendiri
+// @Tags Transaction
+// @Produce json
+// @Security Bearer
+// @Param transaction_id path string true "Transaction ID"
+// @Success 200 {object} utils.Response "Transaction detail"
+// @Router /api/transactions/{transaction_id} [get]
+func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
+		transactionID := c.Param("transaction_id")
+		parsedID, err := uuid.Parse(transactionID)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid transaction ID")
+			return
+		}
+
+		var transaction models.Transaction
+		if err := db.Where("id = ? AND user_id = ?", parsedID, userID).First(&transaction).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Transaction not found")
+			return
+		}
+
+		var proof models.PaymentProof
+		proofErr := db.Where("transaction_id = ?", parsedID).Preload("Photos").First(&proof).Error
+
+		transaction.PrepareResponse()
+
+		data := map[string]interface{}{
+			"transaction": transaction,
+		}
+		if proofErr == nil {
+			data["payment_proof"] = proof
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Transaction retrieved", data)
+	}
+}
+
 // @Summary Get all transactions (admin)
 // @Description List semua transaksi - admin only
 // @Tags Admin Transaction

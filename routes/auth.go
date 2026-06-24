@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -371,6 +372,37 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 			"token_expires_at":   nil,
 			"verified_at":        &now,
 		})
+
+		var freePlan models.SubscriptionPlan
+		if err := db.First(&freePlan, "id = ?", "85052fb1-7a58-4951-957f-36ce2e5588f6").Error; err == nil {
+			var existing models.UserSubscription
+			if db.Where("user_id = ? AND plan_name = ? AND status = 'active'", user.ID, freePlan.Name).First(&existing).Error != nil {
+				startDate := time.Now()
+				endDate := startDate.AddDate(0, 0, freePlan.DurationDays)
+
+				var rules []models.SubscriptionRule
+				db.Where("plan_id = ?", freePlan.ID).Find(&rules)
+				rulesMap := map[string]string{}
+				for _, r := range rules {
+					rulesMap[r.RuleKey] = r.RuleValue
+				}
+				rulesJSON, _ := json.Marshal(rulesMap)
+
+				subscription := models.UserSubscription{
+					UserID:       user.ID,
+					PlanName:     freePlan.Name,
+					PlanType:     freePlan.Type,
+					PlanBenefits: freePlan.Benefits,
+					PlanPrice:    freePlan.FinalPrice,
+					PlanDuration: freePlan.DurationDays,
+					Rules:        string(rulesJSON),
+					Status:       "active",
+					StartDate:    startDate,
+					EndDate:      endDate,
+				}
+				db.Create(&subscription)
+			}
+		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully. You can now login.", nil)
 	}

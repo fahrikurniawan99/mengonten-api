@@ -261,6 +261,18 @@ func PreviewTransaction(db *gorm.DB, emailSender *worker.EmailSender) gin.Handle
 			return
 		}
 
+		var existingSub models.UserSubscription
+		if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+			userID, "active", time.Now()).
+			Order("end_date DESC").
+			First(&existingSub).Error; err == nil {
+			if existingSub.PlanPrice > 0 {
+				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
+				return
+			}
+			db.Model(&existingSub).Update("status", "cancelled")
+		}
+
 		db.Where("expires_at < ?", time.Now()).Delete(&models.TransactionPreview{})
 
 		price := plan.FinalPrice
@@ -387,6 +399,18 @@ func ConfirmTransaction(db *gorm.DB) gin.HandlerFunc {
 			db.Delete(&preview)
 			utils.ErrorResponse(c, http.StatusBadRequest, "Preview has expired. Please create a new one.")
 			return
+		}
+
+		var existingSub models.UserSubscription
+		if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+			userID, "active", time.Now()).
+			Order("end_date DESC").
+			First(&existingSub).Error; err == nil {
+			if existingSub.PlanPrice > 0 {
+				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
+				return
+			}
+			db.Model(&existingSub).Update("status", "cancelled")
 		}
 
 		expireAt := time.Now().Add(24 * time.Hour)

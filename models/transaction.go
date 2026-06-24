@@ -9,21 +9,22 @@ import (
 )
 
 type Transaction struct {
-	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID            uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	UserSubscriptionID *uuid.UUID `gorm:"type:uuid;index" json:"user_subscription_id"`
-	ReferenceID       string     `gorm:"uniqueIndex" json:"reference_id"`
-	Status            string     `gorm:"default:'pending';not null" json:"status"`
-	Amount            float64    `gorm:"not null" json:"amount"`
-	UniqueCode        int        `gorm:"not null" json:"unique_code"`
-	TotalAmount       float64    `gorm:"not null" json:"total_amount"`
-	BankName          string     `gorm:"not null" json:"bank_name"`
-	BankAccountNumber string     `gorm:"not null" json:"bank_account_number"`
-	BankAccountName   string     `gorm:"not null" json:"bank_account_name"`
-	PaidAt            *time.Time `json:"paid_at"`
-	ExpiredAt         *time.Time `json:"expired_at"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	ID                uuid.UUID         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID            uuid.UUID         `gorm:"type:uuid;not null;index" json:"user_id"`
+	UserSubscriptionID *uuid.UUID       `gorm:"type:uuid;index" json:"user_subscription_id"`
+	Subscription      *UserSubscription `gorm:"foreignKey:UserSubscriptionID" json:"subscription,omitempty"`
+	ReferenceID       string            `gorm:"uniqueIndex" json:"reference_id"`
+	Status            string            `gorm:"default:'pending';not null" json:"status"`
+	Amount            float64           `gorm:"not null" json:"amount"`
+	UniqueCode        int               `gorm:"not null" json:"unique_code"`
+	TotalAmount       float64           `gorm:"not null" json:"total_amount"`
+	BankName          string            `gorm:"not null" json:"bank_name"`
+	BankAccountNumber string            `gorm:"not null" json:"bank_account_number"`
+	BankAccountName   string            `gorm:"not null" json:"bank_account_name"`
+	PaidAt            *time.Time        `json:"paid_at"`
+	ExpiredAt         *time.Time        `json:"expired_at"`
+	CreatedAt         time.Time         `json:"created_at"`
+	UpdatedAt         time.Time         `json:"updated_at"`
 }
 
 func (Transaction) TableName() string {

@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 	"mengonten-api/models"
 	"mengonten-api/utils"
+	"mengonten-api/worker"
 )
 
 type CreateTransactionRequest struct {
@@ -229,7 +230,7 @@ func generatePreviewReferenceID() string {
 // @Param request body PreviewTransactionRequest true "Preview data"
 // @Success 200 {object} utils.Response "Payment preview"
 // @Router /api/transactions/preview [post]
-func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
+func PreviewTransaction(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
@@ -266,7 +267,6 @@ func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
 
 		uniqueCode := generateUniqueCode()
 		totalAmount := price + float64(uniqueCode)
-		expiresAt := time.Now().Add(15 * time.Minute)
 
 		preview := models.TransactionPreview{
 			ReferenceID:          generatePreviewReferenceID(),
@@ -283,12 +283,22 @@ func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
 			SubscriptionType:     plan.Type,
 			SubscriptionDuration: plan.DurationDays,
 			SubscriptionBenefits: plan.Benefits,
-			ExpiresAt:            expiresAt,
+			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
 		}
 
 		if err := db.Create(&preview).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create preview")
 			return
+		}
+
+		var user models.User
+		if err := db.First(&user, userID).Error; err == nil {
+			if emailSender != nil {
+			emailSender.SendCheckoutEmail(user.Email, user.Username, preview.ReferenceID,
+				preview.SubscriptionName, plan.Description,
+				preview.Amount, preview.TotalAmount, preview.UniqueCode,
+				req.SubscriptionPlanID)
+			}
 		}
 
 		preview.PrepareResponse()
@@ -301,8 +311,6 @@ func PreviewTransaction(db *gorm.DB) gin.HandlerFunc {
 			"bank_account_number":  preview.BankAccountNumber,
 			"bank_account_name":    preview.BankAccountName,
 			"subscription_name":    preview.SubscriptionName,
-			"expires_at":           preview.ExpiresAt,
-			"expires_in_seconds":   int(time.Until(preview.ExpiresAt).Seconds()),
 		})
 	}
 }

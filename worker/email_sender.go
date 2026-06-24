@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/resend/resend-go/v2"
 	"mengonten-api/config"
 )
@@ -54,5 +55,31 @@ func (es *EmailSender) SendVerificationEmail(toEmail, username, token string) er
 	}
 
 	log.Printf("Verification email sent to %s, ID: %s", toEmail, sent.Id)
+	return nil
+}
+
+func (es *EmailSender) SendCheckoutEmail(toEmail, username, referenceID, planName, description string, amount, totalAmount float64, uniqueCode int, planID uuid.UUID) error {
+	if es == nil {
+		return fmt.Errorf("email sender not configured")
+	}
+
+	checkoutURL := fmt.Sprintf("%s/checkout?plan_id=%s", es.FrontendURL, planID.String())
+	subject := fmt.Sprintf("Checkout #%s - Mengonten", referenceID)
+	htmlBody := buildCheckoutTemplate(username, referenceID, planName, description, amount, totalAmount, uniqueCode, checkoutURL)
+
+	params := &resend.SendEmailRequest{
+		From:    es.FromEmail,
+		To:      []string{toEmail},
+		Subject: subject,
+		Html:    htmlBody,
+	}
+
+	sent, err := es.Client.Emails.Send(params)
+	if err != nil {
+		log.Printf("Failed to send checkout email to %s: %v", toEmail, err)
+		return err
+	}
+
+	log.Printf("Checkout email sent to %s, ID: %s", toEmail, sent.Id)
 	return nil
 }

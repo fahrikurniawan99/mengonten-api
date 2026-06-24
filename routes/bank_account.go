@@ -1,29 +1,21 @@
 package routes
 
 import (
+	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"mengonten-api/config"
 	"mengonten-api/models"
 	"mengonten-api/utils"
+	"mengonten-api/worker"
 )
-
-type CreateBankAccountRequest struct {
-	BankName      string `json:"bank_name" binding:"required"`
-	AccountNumber string `json:"account_number" binding:"required"`
-	AccountName   string `json:"account_name" binding:"required"`
-	Icon          string `json:"icon"`
-}
-
-type UpdateBankAccountRequest struct {
-	BankName      string `json:"bank_name" binding:"omitempty"`
-	AccountNumber string `json:"account_number" binding:"omitempty"`
-	AccountName   string `json:"account_name" binding:"omitempty"`
-	Icon          string `json:"icon" binding:"omitempty"`
-	IsActive      *bool  `json:"is_active" binding:"omitempty"`
-}
 
 // @Summary Get all bank accounts (admin)
 // @Description List semua bank accounts - admin only
@@ -61,27 +53,57 @@ func GetActiveBankAccounts(db *gorm.DB) gin.HandlerFunc {
 }
 
 // @Summary Create bank account (admin)
-// @Description Tambah rekening bank baru - admin only
+// @Description Tambah rekening bank baru + upload icon - admin only
 // @Tags Bank Account
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security Bearer
-// @Param request body CreateBankAccountRequest true "Bank account data"
+// @Param bank_name formData string true "Nama bank"
+// @Param account_number formData string true "Nomor rekening"
+// @Param account_name formData string true "Atas nama"
+// @Param icon formData file false "Icon bank"
 // @Success 201 {object} utils.Response "Bank account created"
 // @Router /api/admin/bank-accounts [post]
 func CreateBankAccount(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req CreateBankAccountRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+		bankName := c.PostForm("bank_name")
+		accountNumber := c.PostForm("account_number")
+		accountName := c.PostForm("account_name")
+
+		if bankName == "" || accountNumber == "" || accountName == "" {
+			utils.ErrorResponse(c, http.StatusBadRequest, "bank_name, account_number, and account_name are required")
 			return
 		}
 
+		var iconURL string
+		file, _ := c.FormFile("icon")
+		if file != nil {
+			uploadDir := "uploads/bank-icons"
+			os.MkdirAll(uploadDir, os.ModePerm)
+			ext := filepath.Ext(file.Filename)
+			fileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(uploadDir, fileName)
+
+			if err := c.SaveUploadedFile(file, filePath); err != nil {
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save icon")
+				return
+			}
+
+			url, err := worker.UploadToR2Static(filePath, fmt.Sprintf("bank-icons/%s", fileName))
+			if err != nil {
+				log.Printf("Failed to upload bank icon to R2: %v", err)
+				os.Remove(filePath)
+			} else {
+				os.Remove(filePath)
+				iconURL = url
+			}
+		}
+
 		account := models.BankAccount{
-			BankName:      req.BankName,
-			AccountNumber: req.AccountNumber,
-			AccountName:   req.AccountName,
-			Icon:          req.Icon,
+			BankName:      bankName,
+			AccountNumber: accountNumber,
+			AccountName:   accountName,
+			Icon:          iconURL,
 			IsActive:      true,
 		}
 
@@ -95,13 +117,17 @@ func CreateBankAccount(db *gorm.DB) gin.HandlerFunc {
 }
 
 // @Summary Update bank account (admin)
-// @Description Update rekening bank - admin only
+// @Description Update rekening bank + ganti icon - admin only
 // @Tags Bank Account
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security Bearer
 // @Param account_id path string true "Account ID"
-// @Param request body UpdateBankAccountRequest true "Update data"
+// @Param bank_name formData string false "Nama bank"
+// @Param account_number formData string false "Nomor rekening"
+// @Param account_name formData string false "Atas nama"
+// @Param icon formData file false "Icon bank (ganti)"
+// @Param is_active formData string false "Aktif/nonaktif (true/false)"
 // @Success 200 {object} utils.Response "Bank account updated"
 // @Router /api/admin/bank-accounts/{account_id} [put]
 func UpdateBankAccount(db *gorm.DB) gin.HandlerFunc {
@@ -119,37 +145,62 @@ func UpdateBankAccount(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var req UpdateBankAccountRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-			return
-		}
-
 		updates := map[string]interface{}{}
-		if req.BankName != "" {
-			updates["bank_name"] = req.BankName
+
+		if bankName := c.PostForm("bank_name"); bankName != "" {
+			updates["bank_name"] = bankName
 		}
-		if req.AccountNumber != "" {
-			updates["account_number"] = req.AccountNumber
+		if accountNumber := c.PostForm("account_number"); accountNumber != "" {
+			updates["account_number"] = accountNumber
 		}
-		if req.AccountName != "" {
-			updates["account_name"] = req.AccountName
+		if accountName := c.PostForm("account_name"); accountName != "" {
+			updates["account_name"] = accountName
 		}
-		if req.Icon != "" {
-			updates["icon"] = req.Icon
-		}
-		if req.IsActive != nil {
-			updates["is_active"] = *req.IsActive
+		if isActiveStr := c.PostForm("is_active"); isActiveStr != "" {
+			if isActiveStr == "true" {
+				updates["is_active"] = true
+			} else if isActiveStr == "false" {
+				updates["is_active"] = false
+			}
 		}
 
-		db.Model(&account).Updates(updates)
+		file, _ := c.FormFile("icon")
+		if file != nil {
+			uploadDir := "uploads/bank-icons"
+			os.MkdirAll(uploadDir, os.ModePerm)
+			ext := filepath.Ext(file.Filename)
+			fileName := fmt.Sprintf("%s%s", uuid.New().String(), ext)
+			filePath := filepath.Join(uploadDir, fileName)
 
+			if err := c.SaveUploadedFile(file, filePath); err != nil {
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to save icon")
+				return
+			}
+
+			url, err := worker.UploadToR2Static(filePath, fmt.Sprintf("bank-icons/%s", fileName))
+			if err != nil {
+				log.Printf("Failed to upload bank icon to R2: %v", err)
+				os.Remove(filePath)
+			} else {
+				os.Remove(filePath)
+				if account.Icon != "" {
+					deleteIconFromR2(account.Icon)
+				}
+				updates["icon"] = url
+			}
+		}
+
+		if len(updates) > 0 {
+			db.Model(&account).Updates(updates)
+		}
+
+		db.First(&account, parsedID)
 		utils.SuccessResponse(c, http.StatusOK, "Bank account updated", account)
 	}
 }
 
 // @Summary Delete bank account (admin)
-// @Description Hapus rekening bank - admin only
+// @Description Hapus rekening bank + icon - admin only
 // @Tags Bank Account
 // @Produce json
 // @Security Bearer
@@ -171,11 +222,26 @@ func DeleteBankAccount(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		if account.Icon != "" {
+			deleteIconFromR2(account.Icon)
+		}
+
 		if err := db.Delete(&account).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete bank account")
 			return
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Bank account deleted successfully", nil)
+	}
+}
+
+func deleteIconFromR2(iconURL string) {
+	publicURL := config.InitExternalAPIs().R2PublicURL
+	publicURL = strings.TrimRight(publicURL, "/")
+	key := strings.TrimPrefix(iconURL, publicURL+"/")
+	if key != iconURL && key != "" {
+		if err := worker.DeleteFromR2(key); err != nil {
+			log.Printf("Failed to delete old icon from R2: %v", err)
+		}
 	}
 }

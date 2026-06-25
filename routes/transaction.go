@@ -64,7 +64,7 @@ func GetMyTransactions(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		var transactions []models.Transaction
-		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Find(&transactions).Error; err != nil {
+		if err := db.Where("user_id = ?", userID).Preload("Subscription").Order("created_at DESC").Find(&transactions).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch transactions")
 			return
 		}
@@ -132,7 +132,7 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 func GetAllTransactions(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var transactions []models.Transaction
-		if err := db.Order("created_at DESC").Find(&transactions).Error; err != nil {
+		if err := db.Preload("Subscription").Order("created_at DESC").Find(&transactions).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch transactions")
 			return
 		}

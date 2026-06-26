@@ -2,13 +2,14 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 	"mengonten-api/config"
 	"mengonten-api/models"
@@ -17,25 +18,26 @@ import (
 )
 
 type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Username string `json:"username" binding:"required,min=3"`
-	Password string `json:"password" binding:"required,min=6"`
+	Email string `json:"email" binding:"required,email"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email string `json:"email" binding:"required,email"`
+}
+
+type VerifyOTPRequest struct {
+	Email string `json:"email" binding:"required,email"`
+	OTP   string `json:"otp" binding:"required"`
 }
 
 type AuthResponse struct {
-	Token string      `json:"token"`
+	Token string       `json:"token"`
 	User  UserResponse `json:"user"`
 }
 
 type UserResponse struct {
 	ID             uuid.UUID `json:"id"`
 	Email          string    `json:"email"`
-	Username       string    `json:"username"`
 	Role           string    `json:"role"`
 	AccountStatus  string    `json:"account_status"`
 	WarningMessage string    `json:"warning_message,omitempty"`
@@ -43,15 +45,12 @@ type UserResponse struct {
 }
 
 // @Summary Register new user
-// @Description Create new user account with email, username, and password
+// @Description Daftar dengan email, kirim verifikasi email
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body RegisterRequest true "Registration data"
-// @Success 201 {object} utils.Response{data=AuthResponse} "User registered successfully"
-// @Failure 400 {object} utils.Response "Invalid request format"
-// @Failure 409 {object} utils.Response "Email or username already exists"
-// @Failure 500 {object} utils.Response "Server error"
+// @Param request body RegisterRequest true "Email"
+// @Success 201 {object} utils.Response "Registration email sent"
 // @Router /api/auth/register [post]
 func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -62,14 +61,8 @@ func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 		}
 
 		var existingUser models.User
-		if err := db.Where("email = ? OR username = ?", req.Email, req.Username).First(&existingUser).Error; err == nil {
-			utils.ErrorResponse(c, http.StatusConflict, "Email or username already exists")
-			return
-		}
-
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to hash password")
+		if err := db.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+			utils.ErrorResponse(c, http.StatusConflict, "Email already exists")
 			return
 		}
 
@@ -78,8 +71,6 @@ func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 
 		user := models.User{
 			Email:             req.Email,
-			Username:          req.Username,
-			Password:          string(hashedPassword),
 			VerificationToken: verificationToken,
 			TokenExpiresAt:    &tokenExpires,
 		}
@@ -90,25 +81,22 @@ func Register(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 		}
 
 		if emailSender != nil {
-			go emailSender.SendVerificationEmail(user.Email, user.Username, verificationToken)
+			go emailSender.SendVerificationEmail(user.Email, verificationToken)
 		}
 
 		utils.SuccessResponse(c, http.StatusCreated, "User registered. Please check your email for verification link.", nil)
 	}
 }
 
-// @Summary User login
-// @Description Authenticate user with email and password, returns JWT token
+// @Summary User login (send OTP)
+// @Description Kirim kode OTP ke email untuk login
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body LoginRequest true "Login credentials"
-// @Success 200 {object} utils.Response{data=AuthResponse} "Login successful"
-// @Failure 400 {object} utils.Response "Invalid request format"
-// @Failure 401 {object} utils.Response "Invalid email or password"
-// @Failure 500 {object} utils.Response "Server error"
+// @Param request body LoginRequest true "Email"
+// @Success 200 {object} utils.Response "OTP sent"
 // @Router /api/auth/login [post]
-func Login(db *gorm.DB) gin.HandlerFunc {
+func Login(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -118,19 +106,76 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 
 		var user models.User
 		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
 			return
 		}
 
 		if !user.IsVerified {
-			utils.ErrorResponse(c, http.StatusForbidden, "Email not verified. Please check your inbox.")
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
 			return
 		}
+
+		otp := generateOTP()
+		otpExpires := time.Now().Add(5 * time.Minute)
+
+		db.Model(&user).Updates(map[string]interface{}{
+			"otp_code":       otp,
+			"otp_expires_at": otpExpires,
+		})
+
+		if emailSender != nil {
+			go emailSender.SendOTPEmail(user.Email, otp)
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
+	}
+}
+
+// @Summary Verify OTP
+// @Description Masukkan kode OTP untuk login
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body VerifyOTPRequest true "Email & OTP"
+// @Success 200 {object} utils.Response{data=AuthResponse} "Login successful"
+// @Router /api/auth/verify-otp [post]
+func VerifyOTP(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req VerifyOTPRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var user models.User
+		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or OTP")
+			return
+		}
+
+		if user.OTPCode == "" || user.OTPExpiresAt == nil {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "No OTP requested. Please request a new one.")
+			return
+		}
+
+		if time.Now().After(*user.OTPExpiresAt) {
+			db.Model(&user).Updates(map[string]interface{}{
+				"otp_code":       "",
+				"otp_expires_at": nil,
+			})
+			utils.ErrorResponse(c, http.StatusUnauthorized, "OTP has expired. Please request a new one.")
+			return
+		}
+
+		if user.OTPCode != req.OTP {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid OTP code")
+			return
+		}
+
+		db.Model(&user).Updates(map[string]interface{}{
+			"otp_code":       "",
+			"otp_expires_at": nil,
+		})
 
 		token := generateToken(user.ID)
 		utils.SuccessResponse(c, http.StatusOK, "Login successful", AuthResponse{
@@ -138,7 +183,6 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 			User: UserResponse{
 				ID:             user.ID,
 				Email:          user.Email,
-				Username:       user.Username,
 				Role:           user.Role,
 				AccountStatus:  user.AccountStatus,
 				WarningMessage: user.WarningMessage,
@@ -148,18 +192,15 @@ func Login(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// @Summary Admin login
-// @Description Login khusus admin - hanya user dengan role admin
+// @Summary Admin login (send OTP)
+// @Description Kirim kode OTP ke email admin untuk login
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body LoginRequest true "Admin credentials"
-// @Success 200 {object} utils.Response{data=AuthResponse} "Admin login successful"
-// @Failure 400 {object} utils.Response "Invalid request format"
-// @Failure 401 {object} utils.Response "Invalid email or password"
-// @Failure 403 {object} utils.Response "Access denied - admin only"
+// @Param request body LoginRequest true "Email"
+// @Success 200 {object} utils.Response "OTP sent"
 // @Router /api/auth/admin/login [post]
-func AdminLogin(db *gorm.DB) gin.HandlerFunc {
+func AdminLogin(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req LoginRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -169,43 +210,38 @@ func AdminLogin(db *gorm.DB) gin.HandlerFunc {
 
 		var user models.User
 		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid email or password")
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
 			return
 		}
 
 		if user.Role != "admin" {
-			utils.ErrorResponse(c, http.StatusForbidden, "Access denied. Admin only.")
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
 			return
 		}
 
 		if !user.IsVerified {
-			utils.ErrorResponse(c, http.StatusForbidden, "Email not verified. Please check your inbox.")
+			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
 			return
 		}
 
-		token := generateToken(user.ID)
-		utils.SuccessResponse(c, http.StatusOK, "Admin login successful", AuthResponse{
-			Token: token,
-			User: UserResponse{
-				ID:             user.ID,
-				Email:          user.Email,
-				Username:       user.Username,
-				Role:           user.Role,
-				AccountStatus:  user.AccountStatus,
-				WarningMessage: user.WarningMessage,
-				IsVerified:     user.IsVerified,
-			},
+		otp := generateOTP()
+		otpExpires := time.Now().Add(5 * time.Minute)
+
+		db.Model(&user).Updates(map[string]interface{}{
+			"otp_code":       otp,
+			"otp_expires_at": otpExpires,
 		})
+
+		if emailSender != nil {
+			go emailSender.SendOTPEmail(user.Email, otp)
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
 	}
 }
 
 // @Summary User logout
-// @Description Logout user (clears session)
+// @Description Logout user
 // @Tags Auth
 // @Success 200 {object} utils.Response "Logout successful"
 // @Router /api/auth/logout [post]
@@ -214,13 +250,11 @@ func Logout(c *gin.Context) {
 }
 
 // @Summary Get user profile
-// @Description Retrieve authenticated user profile information
+// @Description Ambil profil user yang sedang login
 // @Tags Auth
 // @Security Bearer
 // @Produce json
 // @Success 200 {object} utils.Response{data=UserResponse} "Profile retrieved"
-// @Failure 401 {object} utils.Response "User not authenticated"
-// @Failure 404 {object} utils.Response "User not found"
 // @Router /api/profile [get]
 func GetProfile(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -239,7 +273,6 @@ func GetProfile(db *gorm.DB) gin.HandlerFunc {
 		utils.SuccessResponse(c, http.StatusOK, "Profile retrieved", UserResponse{
 			ID:             user.ID,
 			Email:          user.Email,
-			Username:       user.Username,
 			Role:           user.Role,
 			AccountStatus:  user.AccountStatus,
 			WarningMessage: user.WarningMessage,
@@ -260,72 +293,8 @@ func generateToken(userID uuid.UUID) string {
 	return tokenString
 }
 
-type UpdateUsernameRequest struct {
-	Username string `json:"username" binding:"required,min=3"`
-}
-
-// @Summary Update username
-// @Description Update authenticated user's username
-// @Tags Auth
-// @Security Bearer
-// @Accept json
-// @Produce json
-// @Param request body UpdateUsernameRequest true "New username"
-// @Success 200 {object} utils.Response{data=UserResponse} "Username updated"
-// @Failure 400 {object} utils.Response "Invalid request"
-// @Failure 409 {object} utils.Response "Username already taken"
-// @Router /api/profile/username [put]
-func UpdateUsername(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-			return
-		}
-
-		var req UpdateUsernameRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-			return
-		}
-
-		var user models.User
-		if err := db.First(&user, userID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "User not found")
-			return
-		}
-
-		if user.Username == req.Username {
-			utils.SuccessResponse(c, http.StatusOK, "Username is the same", UserResponse{
-				ID:             user.ID,
-				Email:          user.Email,
-				Username:       user.Username,
-				Role:           user.Role,
-				AccountStatus:  user.AccountStatus,
-				WarningMessage: user.WarningMessage,
-				IsVerified:     user.IsVerified,
-			})
-			return
-		}
-
-		var existing models.User
-		if err := db.Where("username = ?", req.Username).First(&existing).Error; err == nil {
-			utils.ErrorResponse(c, http.StatusConflict, "Username already taken")
-			return
-		}
-
-		db.Model(&user).Update("username", req.Username)
-
-		utils.SuccessResponse(c, http.StatusOK, "Username updated successfully", UserResponse{
-			ID:             user.ID,
-			Email:          user.Email,
-			Username:       req.Username,
-			Role:           user.Role,
-			AccountStatus:  user.AccountStatus,
-			WarningMessage: user.WarningMessage,
-			IsVerified:     user.IsVerified,
-		})
-	}
+func generateOTP() string {
+	return fmt.Sprintf("%06d", 100000+rand.Intn(900000))
 }
 
 type VerifyEmailRequest struct {
@@ -333,13 +302,12 @@ type VerifyEmailRequest struct {
 }
 
 // @Summary Verify email address
-// @Description Verify user email dengan token dari email
+// @Description Verifikasi email dan auto-login
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body VerifyEmailRequest true "Verification token"
-// @Success 200 {object} utils.Response "Email verified successfully"
-// @Failure 400 {object} utils.Response "Invalid or expired token"
+// @Success 200 {object} utils.Response{data=AuthResponse} "Email verified"
 // @Router /api/auth/verify-email [post]
 func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -356,7 +324,18 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 		}
 
 		if user.IsVerified {
-			utils.SuccessResponse(c, http.StatusOK, "Email already verified", nil)
+			token := generateToken(user.ID)
+			utils.SuccessResponse(c, http.StatusOK, "Email already verified", AuthResponse{
+				Token: token,
+				User: UserResponse{
+					ID:             user.ID,
+					Email:          user.Email,
+					Role:           user.Role,
+					AccountStatus:  user.AccountStatus,
+					WarningMessage: user.WarningMessage,
+					IsVerified:     true,
+				},
+			})
 			return
 		}
 
@@ -404,7 +383,18 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 			}
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully. You can now login.", nil)
+		token := generateToken(user.ID)
+		utils.SuccessResponse(c, http.StatusOK, "Email verified successfully", AuthResponse{
+			Token: token,
+			User: UserResponse{
+				ID:             user.ID,
+				Email:          user.Email,
+				Role:           user.Role,
+				AccountStatus:  user.AccountStatus,
+				WarningMessage: user.WarningMessage,
+				IsVerified:     true,
+			},
+		})
 	}
 }
 
@@ -413,14 +403,12 @@ type ResendVerificationRequest struct {
 }
 
 // @Summary Resend verification email
-// @Description Kirim ulang email verifikasi (cooldown 5 menit)
+// @Description Kirim ulang email verifikasi
 // @Tags Auth
 // @Accept json
 // @Produce json
 // @Param request body ResendVerificationRequest true "Email address"
 // @Success 200 {object} utils.Response "Verification email sent"
-// @Failure 400 {object} utils.Response "Invalid request"
-// @Failure 429 {object} utils.Response "Rate limited - cooldown active"
 // @Router /api/auth/resend-verification [post]
 func ResendVerification(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -441,15 +429,6 @@ func ResendVerification(db *gorm.DB, emailSender *worker.EmailSender) gin.Handle
 			return
 		}
 
-		if user.TokenExpiresAt != nil && time.Now().Before(*user.TokenExpiresAt) {
-			remaining := time.Until(*user.TokenExpiresAt)
-			if remaining > (23*time.Hour + 55*time.Minute) {
-				utils.ErrorResponse(c, http.StatusTooManyRequests,
-					"Please wait before requesting a new verification email. Try again in 5 minutes.")
-				return
-			}
-		}
-
 		newToken := uuid.New().String()
 		newExpiry := time.Now().Add(24 * time.Hour)
 
@@ -459,7 +438,7 @@ func ResendVerification(db *gorm.DB, emailSender *worker.EmailSender) gin.Handle
 		})
 
 		if emailSender != nil {
-			go emailSender.SendVerificationEmail(user.Email, user.Username, newToken)
+			go emailSender.SendVerificationEmail(user.Email, newToken)
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Verification email sent. Please check your inbox.", nil)

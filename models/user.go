@@ -10,8 +10,6 @@ import (
 type User struct {
 	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	Email             string     `gorm:"uniqueIndex;not null" json:"email"`
-	Username          string     `gorm:"uniqueIndex;not null" json:"username"`
-	Password          string     `gorm:"not null" json:"-"`
 	Role              string     `gorm:"default:'user';not null" json:"role"`
 	AccountStatus     string     `gorm:"default:'active';not null" json:"account_status"`
 	SuspendReason     string     `gorm:"type:text" json:"suspend_reason"`
@@ -22,6 +20,8 @@ type User struct {
 	VerificationToken string     `gorm:"index" json:"-"`
 	TokenExpiresAt    *time.Time `json:"-"`
 	VerifiedAt        *time.Time `json:"verified_at"`
+	OTPCode           string     `json:"-"`
+	OTPExpiresAt      *time.Time `json:"-"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }

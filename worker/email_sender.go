@@ -30,16 +30,16 @@ func NewEmailSender(cfg *config.ResendConfig) *EmailSender {
 	}
 }
 
-func (es *EmailSender) SendVerificationEmail(toEmail, username, token string) error {
+func (es *EmailSender) SendVerificationEmail(toEmail, token string) error {
 	if es == nil {
 		return fmt.Errorf("email sender not configured")
 	}
 
 	verificationURL := fmt.Sprintf("%s/verify-email?token=%s", es.FrontendURL, token)
 
-	subject := "Verify Your Email - Mengonten"
+	subject := "Verifikasi Email - Mengonten"
 
-	htmlBody := buildVerificationTemplate(username, verificationURL)
+	htmlBody := buildVerificationTemplate(verificationURL)
 
 	params := &resend.SendEmailRequest{
 		From:    es.FromEmail,
@@ -81,5 +81,30 @@ func (es *EmailSender) SendCheckoutEmail(toEmail, username, referenceID, planNam
 	}
 
 	log.Printf("Checkout email sent to %s, ID: %s", toEmail, sent.Id)
+	return nil
+}
+
+func (es *EmailSender) SendOTPEmail(toEmail, otp string) error {
+	if es == nil {
+		return fmt.Errorf("email sender not configured")
+	}
+
+	subject := "Kode OTP Login - Mengonten"
+	htmlBody := buildOTPTemplate(otp)
+
+	params := &resend.SendEmailRequest{
+		From:    es.FromEmail,
+		To:      []string{toEmail},
+		Subject: subject,
+		Html:    htmlBody,
+	}
+
+	sent, err := es.Client.Emails.Send(params)
+	if err != nil {
+		log.Printf("Failed to send OTP email to %s: %v", toEmail, err)
+		return err
+	}
+
+	log.Printf("OTP email sent to %s, ID: %s", toEmail, sent.Id)
 	return nil
 }

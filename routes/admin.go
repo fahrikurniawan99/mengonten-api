@@ -18,7 +18,6 @@ type UpdateRoleRequest struct {
 type AdminUserResponse struct {
 	ID               uuid.UUID `json:"id"`
 	Email            string    `json:"email"`
-	Username         string    `json:"username"`
 	Role             string    `json:"role"`
 	AccountStatus    string    `json:"account_status"`
 	SuspendReason    string    `json:"suspend_reason"`
@@ -38,7 +37,6 @@ func toAdminUserResponse(u models.User) AdminUserResponse {
 	return AdminUserResponse{
 		ID:               u.ID,
 		Email:            u.Email,
-		Username:         u.Username,
 		Role:             u.Role,
 		AccountStatus:    u.AccountStatus,
 		SuspendReason:    u.SuspendReason,

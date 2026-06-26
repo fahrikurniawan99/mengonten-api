@@ -29,10 +29,11 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	auth := r.Group("/api/auth")
 	{
 		auth.POST("/register", Register(db, emailSender))
-		auth.POST("/login", Login(db))
-		auth.POST("/admin/login", AdminLogin(db))
+		auth.POST("/login", Login(db, emailSender))
+		auth.POST("/admin/login", AdminLogin(db, emailSender))
 		auth.POST("/logout", Logout)
 		auth.POST("/verify-email", VerifyEmail(db, emailSender))
+		auth.POST("/verify-otp", VerifyOTP(db))
 		auth.POST("/resend-verification", ResendVerification(db, emailSender))
 	}
 
@@ -40,7 +41,6 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 	user.Use(middleware.AuthWithAccountStatusCheck(db))
 	{
 		user.GET("/profile", GetProfile(db))
-		user.PUT("/profile/username", UpdateUsername(db))
 		user.GET("/youtube", GetMyVideos(db))
 		user.POST("/youtube/submit", middleware.RequireActiveSubscription(db), SubmitYouTubeVideo(db, youtubeProcessor))
 		user.GET("/youtube/:video_id", GetYouTubeVideo(db))

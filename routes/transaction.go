@@ -351,7 +351,7 @@ func PreviewTransaction(db *gorm.DB, emailSender *worker.EmailSender) gin.Handle
 		var user models.User
 		if err := db.First(&user, userID).Error; err == nil {
 			if emailSender != nil {
-			emailSender.SendCheckoutEmail(user.Email, user.Username, preview.ReferenceID,
+			emailSender.SendCheckoutEmail(user.Email, user.Email, preview.ReferenceID,
 				preview.SubscriptionName, plan.Description,
 				preview.Amount, preview.TotalAmount, preview.UniqueCode,
 				req.SubscriptionPlanID)

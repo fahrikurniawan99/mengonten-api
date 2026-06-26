@@ -1,11 +1,8 @@
 package routes
 
 import (
-	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,33 +15,207 @@ import (
 
 type CreateTransactionRequest struct {
 	SubscriptionPlanID uuid.UUID `json:"subscription_plan_id" binding:"required"`
-	BankAccountID      uuid.UUID `json:"bank_account_id" binding:"required"`
 }
 
-type UpdateTransactionStatusRequest struct {
-	Status string `json:"status" binding:"required,oneof=paid expired cancelled"`
-}
-
-func generateUniqueCode() int {
-	return 100 + rand.Intn(900)
-}
-
-func generateReferenceID() string {
+func generateTransactionReferenceID() string {
 	return fmt.Sprintf("TXN-%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
 }
 
-func mapStatus(status string) string {
-	switch status {
-	case "pending":
-		return "Menunggu Pembayaran"
-	case "paid":
-		return "Dibayar"
-	case "expired":
-		return "Kadaluarsa"
-	case "cancelled":
-		return "Dibatalkan"
-	default:
-		return status
+// @Summary Create transaction (user)
+// @Description Buat transaksi baru + redirect ke Duitku payment page
+// @Tags Transaction
+// @Accept json
+// @Produce json
+// @Security Bearer
+// @Param request body CreateTransactionRequest true "Plan ID"
+// @Success 201 {object} utils.Response "Transaction created"
+// @Router /api/transactions [post]
+func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
+		var req CreateTransactionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		var plan models.SubscriptionPlan
+		if err := db.First(&plan, req.SubscriptionPlanID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Subscription plan not found")
+			return
+		}
+
+		if !plan.IsActive {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Plan is not active")
+			return
+		}
+
+		if plan.FinalPrice > 0 {
+			var activeOrder models.Order
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
+				userID, "active", time.Now()).
+				Order("expired_at DESC").
+				First(&activeOrder).Error; err == nil {
+				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
+				return
+			}
+		}
+
+		var user models.User
+		if err := db.First(&user, userID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "User not found")
+			return
+		}
+
+		referenceID := generateTransactionReferenceID()
+		amount := int64(plan.FinalPrice)
+
+		transaction := models.Transaction{
+			UserID:             userID.(uuid.UUID),
+			SubscriptionPlanID: plan.ID,
+			ReferenceID:        referenceID,
+			PaymentTotal:       plan.FinalPrice,
+			Status:             "pending",
+		}
+
+		if err := db.Create(&transaction).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create transaction")
+			return
+		}
+
+		if duitkuClient != nil && amount > 0 {
+			result, err := duitkuClient.CreateInvoice(amount, transaction.ID.String(), user.Email)
+			if err != nil {
+				db.Delete(&transaction)
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create payment invoice: "+err.Error())
+				return
+			}
+
+			db.Model(&transaction).Updates(map[string]interface{}{
+				"payment_url":  result.PaymentURL,
+				"payment_code": result.Reference,
+				"duitku_ref":   result.Reference,
+			})
+			transaction.PaymentURL = result.PaymentURL
+			transaction.PaymentCode = result.Reference
+		}
+
+		utils.SuccessResponse(c, http.StatusCreated, "Transaction created", transaction)
+	}
+}
+
+// @Summary Duitku payment callback
+// @Description Webhook dari Duitku untuk update status transaksi
+// @Tags Transaction
+// @Accept json
+// @Produce json
+// @Param request body object false "Callback params"
+// @Success 200 {object} utils.Response "Callback processed"
+// @Router /callback/duitku [post]
+func CallbackDuitku(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var params worker.CallbackParams
+		if err := c.ShouldBind(&params); err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid callback data")
+			return
+		}
+
+		if duitkuClient != nil {
+			if !duitkuClient.VerifyCallback(&params) {
+				utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid signature")
+				return
+			}
+		}
+
+		transactionID, err := uuid.Parse(params.MerchantOrderID)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid merchant order ID")
+			return
+		}
+
+		var transaction models.Transaction
+		if err := db.First(&transaction, transactionID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Transaction not found")
+			return
+		}
+
+		if transaction.Status != "pending" {
+			c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "already processed"})
+			return
+		}
+
+		updates := map[string]interface{}{
+			"payment_code": params.PaymentCode,
+		}
+
+		if params.ResultCode == "00" {
+			now := time.Now()
+			updates["status"] = "success"
+			updates["payment_at"] = &now
+
+			db.Model(&transaction).Updates(updates)
+			db.First(&transaction, transactionID)
+
+			var plan models.SubscriptionPlan
+			if err := db.First(&plan, transaction.SubscriptionPlanID).Error; err != nil {
+				c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "transaction updated but plan not found"})
+				return
+			}
+
+			var activeOrder models.Order
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
+				transaction.UserID, "active", time.Now()).
+				Order("expired_at DESC").
+				First(&activeOrder).Error; err == nil {
+				if activeOrder.ProductPrice > 0 {
+					db.Model(&activeOrder).Update("status", "cancelled")
+				}
+			}
+
+			order := models.Order{
+				UserID:        transaction.UserID,
+				TransactionID: transaction.ID,
+				PlanID:        plan.ID,
+				ProductName:   plan.Name,
+				ProductPrice:  plan.FinalPrice,
+				Status:        "active",
+				ExpiredAt:     time.Now().AddDate(0, 0, plan.DurationDays),
+			}
+
+			if err := db.Create(&order).Error; err != nil {
+				c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "transaction updated but order creation failed"})
+				return
+			}
+
+			var rules []models.SubscriptionRule
+			db.Where("plan_id = ?", plan.ID).Find(&rules)
+			for _, rule := range rules {
+				ruleID := rule.ID
+				orderRule := models.OrderRule{
+					OrderID:            order.ID,
+					SubscriptionRuleID: &ruleID,
+					RuleKey:            rule.RuleKey,
+					RuleValue:          rule.RuleValue,
+				}
+				db.Create(&orderRule)
+			}
+
+			db.Model(&transaction).Update("order_id", order.ID)
+
+		} else if params.ResultCode == "01" {
+			updates["status"] = "failed"
+			db.Model(&transaction).Updates(updates)
+		} else {
+			updates["status"] = "failed"
+			db.Model(&transaction).Updates(updates)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Callback processed"})
 	}
 }
 
@@ -64,21 +235,17 @@ func GetMyTransactions(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		var transactions []models.Transaction
-		if err := db.Where("user_id = ?", userID).Preload("Subscription").Order("created_at DESC").Find(&transactions).Error; err != nil {
+		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Find(&transactions).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch transactions")
 			return
-		}
-
-		for i := range transactions {
-			transactions[i].PrepareResponse()
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Transactions retrieved", transactions)
 	}
 }
 
-// @Summary Get transaction detail with payment proof (user)
-// @Description Lihat detail transaksi + bukti transfer - milik user sendiri
+// @Summary Get transaction detail (user)
+// @Description Lihat detail transaksi milik user sendiri
 // @Tags Transaction
 // @Produce json
 // @Security Bearer
@@ -106,16 +273,15 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var proof models.PaymentProof
-		proofErr := db.Where("transaction_id = ?", parsedID).Preload("Photos").First(&proof).Error
-
-		transaction.PrepareResponse()
-
 		data := map[string]interface{}{
 			"transaction": transaction,
 		}
-		if proofErr == nil {
-			data["payment_proof"] = proof
+
+		if transaction.OrderID != nil {
+			var order models.Order
+			if err := db.Preload("Rules").First(&order, *transaction.OrderID).Error; err == nil {
+				data["order"] = order
+			}
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Transaction retrieved", data)
@@ -132,21 +298,21 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 func GetAllTransactions(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var transactions []models.Transaction
-		if err := db.Preload("Subscription").Order("created_at DESC").Find(&transactions).Error; err != nil {
+		if err := db.Order("created_at DESC").Find(&transactions).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch transactions")
 			return
-		}
-
-		for i := range transactions {
-			transactions[i].PrepareResponse()
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Transactions retrieved", transactions)
 	}
 }
 
+type UpdateTransactionStatusRequest struct {
+	Status string `json:"status" binding:"required,oneof=success failed cancel"`
+}
+
 // @Summary Update transaction status (admin)
-// @Description Update status transaksi - admin only. Jika paid, otomatis buat subscription
+// @Description Update status transaksi - admin only
 // @Tags Admin Transaction
 // @Accept json
 // @Produce json
@@ -185,327 +351,64 @@ func UpdateTransactionStatus(db *gorm.DB) gin.HandlerFunc {
 			"status": req.Status,
 		}
 
-		if req.Status == "paid" {
+		if req.Status == "success" {
 			now := time.Now()
-			updates["paid_at"] = &now
-		}
+			updates["payment_at"] = &now
 
-		db.Model(&transaction).Updates(updates)
+			db.Model(&transaction).Updates(updates)
+			db.First(&transaction, parsedID)
 
-		if req.Status == "paid" && transaction.UserSubscriptionID != nil {
-			var subscription models.UserSubscription
-			if err := db.First(&subscription, *transaction.UserSubscriptionID).Error; err == nil {
-				rules := fetchPlanRules(db, subscription.PlanName)
-				db.Model(&subscription).Updates(map[string]interface{}{
-					"status": "active",
-					"rules":  string(mustMarshal(rules)),
-				})
+			var plan models.SubscriptionPlan
+			if err := db.First(&plan, transaction.SubscriptionPlanID).Error; err != nil {
+				utils.ErrorResponse(c, http.StatusOK, "Transaction updated but plan not found")
+				return
 			}
+
+			var activeOrder models.Order
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
+				transaction.UserID, "active", time.Now()).
+				Order("expired_at DESC").
+				First(&activeOrder).Error; err == nil {
+				if activeOrder.ProductPrice > 0 {
+					db.Model(&activeOrder).Update("status", "cancelled")
+				}
+			}
+
+			order := models.Order{
+				UserID:        transaction.UserID,
+				TransactionID: transaction.ID,
+				PlanID:        plan.ID,
+				ProductName:   plan.Name,
+				ProductPrice:  plan.FinalPrice,
+				Status:        "active",
+				ExpiredAt:     time.Now().AddDate(0, 0, plan.DurationDays),
+			}
+
+			if err := db.Create(&order).Error; err != nil {
+				utils.ErrorResponse(c, http.StatusOK, "Transaction updated but order creation failed")
+				return
+			}
+
+			var rules []models.SubscriptionRule
+			db.Where("plan_id = ?", plan.ID).Find(&rules)
+			for _, rule := range rules {
+				ruleID := rule.ID
+				orderRule := models.OrderRule{
+					OrderID:            order.ID,
+					SubscriptionRuleID: &ruleID,
+					RuleKey:            rule.RuleKey,
+					RuleValue:          rule.RuleValue,
+				}
+				db.Create(&orderRule)
+			}
+
+			db.Model(&transaction).Update("order_id", order.ID)
+			db.First(&transaction, parsedID)
+		} else {
+			db.Model(&transaction).Updates(updates)
+			db.First(&transaction, parsedID)
 		}
 
-		db.First(&transaction, parsedID)
-		transaction.PrepareResponse()
 		utils.SuccessResponse(c, http.StatusOK, "Transaction updated", transaction)
-	}
-}
-
-func fetchPlanRules(db *gorm.DB, planName string) map[string]string {
-	var plan models.SubscriptionPlan
-	if err := db.Where("name = ?", planName).First(&plan).Error; err != nil {
-		return nil
-	}
-
-	var rules []models.SubscriptionRule
-	db.Where("plan_id = ?", plan.ID).Find(&rules)
-
-	result := make(map[string]string)
-	for _, r := range rules {
-		result[r.RuleKey] = r.RuleValue
-	}
-	return result
-}
-
-func resolveRules(subscription *models.UserSubscription, db *gorm.DB) map[string]string {
-	if len(subscription.RulesMap) > 0 {
-		return subscription.RulesMap
-	}
-
-	return fetchPlanRules(db, subscription.PlanName)
-}
-
-func mustMarshal(v interface{}) []byte {
-	data, _ := json.Marshal(v)
-	return data
-}
-
-func parseBenefitsString(benefits string) []string {
-	if benefits == "" {
-		return []string{}
-	}
-	parts := strings.Split(benefits, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		trimmed := strings.TrimSpace(p)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
-}
-
-type PreviewTransactionRequest struct {
-	SubscriptionPlanID uuid.UUID `json:"subscription_plan_id" binding:"required"`
-	BankAccountID      uuid.UUID `json:"bank_account_id" binding:"required"`
-}
-
-type ConfirmTransactionRequest struct {
-	ReferenceID string `json:"reference_id" binding:"required"`
-}
-
-func generatePreviewReferenceID() string {
-	return fmt.Sprintf("PREV-%d-%s", time.Now().UnixNano(), uuid.New().String()[:8])
-}
-
-// @Summary Generate payment preview (user)
-// @Description Generate preview pembayaran dengan unique code (berlaku 15 menit)
-// @Tags Transaction
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param request body PreviewTransactionRequest true "Preview data"
-// @Success 200 {object} utils.Response "Payment preview"
-// @Router /api/transactions/preview [post]
-func PreviewTransaction(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-			return
-		}
-
-		var req PreviewTransactionRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-			return
-		}
-
-		var plan models.SubscriptionPlan
-		if err := db.First(&plan, req.SubscriptionPlanID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "Subscription plan not found")
-			return
-		}
-
-		var bank models.BankAccount
-		if err := db.First(&bank, req.BankAccountID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "Bank account not found")
-			return
-		}
-
-		if !plan.IsActive || !bank.IsActive {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Plan or bank account is not active")
-			return
-		}
-
-		var existingSub models.UserSubscription
-		if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
-			userID, "active", time.Now()).
-			Order("end_date DESC").
-			First(&existingSub).Error; err == nil {
-			if existingSub.PlanPrice > 0 {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
-				return
-			}
-			db.Model(&existingSub).Update("status", "cancelled")
-		}
-
-		db.Where("expires_at < ?", time.Now()).Delete(&models.TransactionPreview{})
-
-		price := plan.FinalPrice
-
-		uniqueCode := generateUniqueCode()
-		totalAmount := price + float64(uniqueCode)
-
-		preview := models.TransactionPreview{
-			ReferenceID:          generatePreviewReferenceID(),
-			UserID:               userID.(uuid.UUID),
-			SubscriptionPlanID:   req.SubscriptionPlanID,
-			BankAccountID:        req.BankAccountID,
-			Amount:               price,
-			UniqueCode:           uniqueCode,
-			TotalAmount:          totalAmount,
-			BankName:             bank.BankName,
-			BankAccountNumber:    bank.AccountNumber,
-			BankAccountName:      bank.AccountName,
-			SubscriptionName:     plan.Name,
-			SubscriptionType:     plan.Type,
-			SubscriptionDuration: plan.DurationDays,
-			SubscriptionBenefits: plan.Benefits,
-			ExpiresAt:            time.Now().Add(100 * 365 * 24 * time.Hour),
-		}
-
-		if err := db.Create(&preview).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create preview")
-			return
-		}
-
-		var user models.User
-		if err := db.First(&user, userID).Error; err == nil {
-			if emailSender != nil {
-			emailSender.SendCheckoutEmail(user.Email, user.Email, preview.ReferenceID,
-				preview.SubscriptionName, plan.Description,
-				preview.Amount, preview.TotalAmount, preview.UniqueCode,
-				req.SubscriptionPlanID)
-			}
-		}
-
-		preview.PrepareResponse()
-		utils.SuccessResponse(c, http.StatusOK, "Payment preview generated", map[string]interface{}{
-			"reference_id":         preview.ReferenceID,
-			"amount":               preview.Amount,
-			"unique_code":          preview.UniqueCode,
-			"total_amount":         preview.TotalAmount,
-			"bank_name":            preview.BankName,
-			"bank_account_number":  preview.BankAccountNumber,
-			"bank_account_name":    preview.BankAccountName,
-			"subscription_name":    preview.SubscriptionName,
-		})
-	}
-}
-
-// @Summary Check preview status (user)
-// @Description Cek apakah preview masih valid
-// @Tags Transaction
-// @Produce json
-// @Security Bearer
-// @Param reference_id path string true "Preview Reference ID"
-// @Success 200 {object} utils.Response "Preview status"
-// @Router /api/transactions/preview/{reference_id} [get]
-func GetPreviewStatus(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		referenceID := c.Param("reference_id")
-
-		var preview models.TransactionPreview
-		if err := db.Where("reference_id = ?", referenceID).First(&preview).Error; err != nil {
-			utils.SuccessResponse(c, http.StatusOK, "Preview not found", map[string]interface{}{
-				"valid":   false,
-				"message": "Preview not found",
-			})
-			return
-		}
-
-		if preview.IsExpired() {
-			db.Delete(&preview)
-			utils.SuccessResponse(c, http.StatusOK, "Preview expired", map[string]interface{}{
-				"valid":   false,
-				"message": "Preview has expired. Please create a new one.",
-			})
-			return
-		}
-
-		utils.SuccessResponse(c, http.StatusOK, "Preview is valid", map[string]interface{}{
-			"valid":              true,
-			"total_amount":       preview.TotalAmount,
-			"expires_at":         preview.ExpiresAt,
-			"expires_in_seconds": int(time.Until(preview.ExpiresAt).Seconds()),
-		})
-	}
-}
-
-// @Summary Confirm payment preview (user)
-// @Description Konfirmasi preview → buat transaction
-// @Tags Transaction
-// @Accept json
-// @Produce json
-// @Security Bearer
-// @Param request body ConfirmTransactionRequest true "Preview reference_id"
-// @Success 201 {object} utils.Response "Transaction created"
-// @Router /api/transactions/confirm [post]
-func ConfirmTransaction(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-			return
-		}
-
-		var req ConfirmTransactionRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
-			return
-		}
-
-		var preview models.TransactionPreview
-		if err := db.Where("reference_id = ? AND user_id = ?", req.ReferenceID, userID).First(&preview).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "Preview not found")
-			return
-		}
-
-		if preview.IsExpired() {
-			db.Delete(&preview)
-			utils.ErrorResponse(c, http.StatusBadRequest, "Preview has expired. Please create a new one.")
-			return
-		}
-
-		var existingSub models.UserSubscription
-		if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
-			userID, "active", time.Now()).
-			Order("end_date DESC").
-			First(&existingSub).Error; err == nil {
-			if existingSub.PlanPrice > 0 {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
-				return
-			}
-			db.Model(&existingSub).Update("status", "cancelled")
-		}
-
-		expireAt := time.Now().Add(24 * time.Hour)
-		startDate := time.Now()
-		endDate := startDate.AddDate(0, 0, preview.SubscriptionDuration)
-
-		subscription := models.UserSubscription{
-			UserID:        userID.(uuid.UUID),
-			PlanName:      preview.SubscriptionName,
-			PlanType:      preview.SubscriptionType,
-			PlanBenefits:  preview.SubscriptionBenefits,
-			PlanPrice:     preview.Amount,
-			PlanDuration:  preview.SubscriptionDuration,
-			Status:        "pending_payment",
-			StartDate:     startDate,
-			EndDate:       endDate,
-		}
-
-		if err := db.Create(&subscription).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create subscription")
-			return
-		}
-
-		subscription.PrepareResponse()
-
-		transaction := models.Transaction{
-			UserID:               userID.(uuid.UUID),
-			UserSubscriptionID:   &subscription.ID,
-			ReferenceID:          generateReferenceID(),
-			Status:               "pending",
-			Amount:               preview.Amount,
-			UniqueCode:           preview.UniqueCode,
-			TotalAmount:          preview.TotalAmount,
-			BankName:             preview.BankName,
-			BankAccountNumber:    preview.BankAccountNumber,
-			BankAccountName:      preview.BankAccountName,
-			ExpiredAt:            &expireAt,
-		}
-
-		if err := db.Create(&transaction).Error; err != nil {
-			db.Delete(&subscription)
-			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create transaction")
-			return
-		}
-
-		db.Delete(&preview)
-
-		utils.SuccessResponse(c, http.StatusCreated, "Transaction created. Please complete payment within 24 hours.", map[string]interface{}{
-			"transaction":         transaction,
-			"user_subscription":   subscription,
-		})
 	}
 }

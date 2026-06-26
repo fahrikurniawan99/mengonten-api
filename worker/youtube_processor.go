@@ -57,7 +57,11 @@ func (yp *YouTubeProcessor) ProcessYouTubeVideo(db *gorm.DB, videoID uuid.UUID) 
 		return
 	}
 
-	rules := getVideoRules(db, video.UserID)
+	_, rules := getActiveOrder(db, video.UserID)
+	if rules == nil {
+		yp.updateJobError(db, &job, video, "subscription_check", "No active subscription")
+		return
+	}
 
 	if maxDurationStr, ok := rules["max_video_duration_sec"]; ok {
 		var maxDuration float64
@@ -193,8 +197,11 @@ func (yp *YouTubeProcessor) findInterestingSegments(db *gorm.DB, video *models.Y
 }
 
 func (yp *YouTubeProcessor) createAndUploadClips(db *gorm.DB, video *models.YouTubeVideo, job *models.ProcessingJob, segments []models.VideoSegment) error {
-	rules := getVideoRules(db, video.UserID)
-	clipQuality := rules["clip_quality"]
+	_, rules := getActiveOrder(db, video.UserID)
+	clipQuality := ""
+	if rules != nil {
+		clipQuality = rules["clip_quality"]
+	}
 
 	for i, segment := range segments {
 		clipPath := filepath.Join(yp.OutputDir, fmt.Sprintf("%s_clip_%d.mp4", video.ID.String(), i+1))
@@ -228,47 +235,26 @@ func (yp *YouTubeProcessor) createAndUploadClips(db *gorm.DB, video *models.YouT
 		db.Model(job).Update("progress", job.Progress)
 	}
 
-	addStorageUsage(db, video.UserID, video.FileSize)
-
 	return nil
 }
 
-func addStorageUsage(db *gorm.DB, userID uuid.UUID, fileSize int64) {
-	var subscription models.UserSubscription
-	if err := db.Where("user_id = ? AND status = ?", userID, "active").
-		Order("end_date DESC").First(&subscription).Error; err != nil {
-		return
-	}
-	db.Model(&subscription).Update("storage_used_bytes", gorm.Expr("storage_used_bytes + ?", fileSize))
-}
-
-func getVideoRules(db *gorm.DB, userID uuid.UUID) map[string]string {
-	var subscription models.UserSubscription
-	if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+func getActiveOrder(db *gorm.DB, userID uuid.UUID) (*models.Order, map[string]string) {
+	var order models.Order
+	if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
 		userID, "active", time.Now()).
-		Order("end_date DESC").First(&subscription).Error; err != nil {
-		return nil
+		Order("expired_at DESC").First(&order).Error; err != nil {
+		return nil, nil
 	}
 
-	subscription.PrepareResponse()
+	var orderRules []models.OrderRule
+	db.Where("order_id = ?", order.ID).Find(&orderRules)
 
-	if len(subscription.RulesMap) > 0 {
-		return subscription.RulesMap
+	rules := map[string]string{}
+	for _, r := range orderRules {
+		rules[r.RuleKey] = r.RuleValue
 	}
 
-	var plan models.SubscriptionPlan
-	if err := db.Where("name = ?", subscription.PlanName).First(&plan).Error; err != nil {
-		return nil
-	}
-
-	var rules []models.SubscriptionRule
-	db.Where("plan_id = ?", plan.ID).Find(&rules)
-
-	rulesMap := make(map[string]string)
-	for _, r := range rules {
-		rulesMap[r.RuleKey] = r.RuleValue
-	}
-	return rulesMap
+	return &order, rules
 }
 
 func (yp *YouTubeProcessor) updateJobError(db *gorm.DB, job *models.ProcessingJob, video models.YouTubeVideo, stage string, errMsg string) {

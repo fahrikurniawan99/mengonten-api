@@ -19,11 +19,11 @@ func RequireActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var subscription models.UserSubscription
-		err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+		var order models.Order
+		err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
 			userID, "active", time.Now()).
-			Order("end_date DESC").
-			First(&subscription).Error
+			Order("expired_at DESC").
+			First(&order).Error
 
 		if err != nil {
 			utils.ErrorResponse(c, http.StatusPaymentRequired, "Active subscription required. Please subscribe to use this feature.")
@@ -31,7 +31,11 @@ func RequireActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		c.Set("subscription", subscription)
+		var rules []models.OrderRule
+		db.Where("order_id = ?", order.ID).Find(&rules)
+
+		c.Set("order", order)
+		c.Set("order_rules", rules)
 		c.Next()
 	}
 }

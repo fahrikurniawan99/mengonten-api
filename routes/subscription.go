@@ -25,11 +25,11 @@ func CheckActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var subscription models.UserSubscription
-		err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+		var order models.Order
+		err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
 			userID, "active", time.Now()).
-			Order("end_date DESC").
-			First(&subscription).Error
+			Order("expired_at DESC").
+			First(&order).Error
 
 		if err != nil {
 			utils.SuccessResponse(c, http.StatusOK, "No active subscription", map[string]interface{}{
@@ -39,12 +39,10 @@ func CheckActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		subscription.PrepareResponse()
-
 		utils.SuccessResponse(c, http.StatusOK, "Active subscription found", map[string]interface{}{
 			"has_active":   true,
 			"status":       "active",
-			"subscription": subscription,
+			"subscription": order,
 		})
 	}
 }
@@ -64,20 +62,19 @@ func GetSubscriptionHistory(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var subscriptions []models.UserSubscription
-		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Find(&subscriptions).Error; err != nil {
+		var orders []models.Order
+		if err := db.Where("user_id = ?", userID).Order("created_at DESC").Find(&orders).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch subscriptions")
 			return
 		}
 
-		for i := range subscriptions {
-			subscriptions[i].PrepareResponse()
-			if subscriptions[i].Status == "active" && time.Now().After(subscriptions[i].EndDate) {
-				subscriptions[i].Status = "expired"
-				db.Model(&subscriptions[i]).Update("status", "expired")
+		for i := range orders {
+			if orders[i].Status == "active" && time.Now().After(orders[i].ExpiredAt) {
+				orders[i].Status = "expired"
+				db.Model(&orders[i]).Update("status", "expired")
 			}
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "Subscription history retrieved", subscriptions)
+		utils.SuccessResponse(c, http.StatusOK, "Subscription history retrieved", orders)
 	}
 }

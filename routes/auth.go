@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -368,32 +367,46 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 
 		var freePlan models.SubscriptionPlan
 		if err := db.First(&freePlan, "id = ?", "85052fb1-7a58-4951-957f-36ce2e5588f6").Error; err == nil {
-			var existing models.UserSubscription
-			if db.Where("user_id = ? AND plan_name = ? AND status = 'active'", user.ID, freePlan.Name).First(&existing).Error != nil {
-				startDate := time.Now()
-				endDate := startDate.AddDate(0, 0, freePlan.DurationDays)
+			var existing models.Order
+			if db.Where("user_id = ? AND status = ?", user.ID, "active").First(&existing).Error != nil {
+				now := time.Now()
+				endDate := now.AddDate(0, 0, freePlan.DurationDays)
+
+				dummyTxn := models.Transaction{
+					UserID:             user.ID,
+					SubscriptionPlanID: freePlan.ID,
+					ReferenceID:        fmt.Sprintf("FREE-%d-%s", now.UnixNano(), user.ID.String()[:8]),
+					PaymentTotal:       0,
+					Status:             "success",
+					PaymentAt:          &now,
+				}
+				db.Create(&dummyTxn)
+
+				order := models.Order{
+					UserID:        user.ID,
+					TransactionID: dummyTxn.ID,
+					PlanID:        freePlan.ID,
+					ProductName:   freePlan.Name,
+					ProductPrice:  freePlan.FinalPrice,
+					Status:        "active",
+					ExpiredAt:     endDate,
+				}
+				db.Create(&order)
+
+				db.Model(&dummyTxn).Update("order_id", order.ID)
 
 				var rules []models.SubscriptionRule
 				db.Where("plan_id = ?", freePlan.ID).Find(&rules)
-				rulesMap := map[string]string{}
 				for _, r := range rules {
-					rulesMap[r.RuleKey] = r.RuleValue
+					ruleID := r.ID
+					orderRule := models.OrderRule{
+						OrderID:            order.ID,
+						SubscriptionRuleID: &ruleID,
+						RuleKey:            r.RuleKey,
+						RuleValue:          r.RuleValue,
+					}
+					db.Create(&orderRule)
 				}
-				rulesJSON, _ := json.Marshal(rulesMap)
-
-				subscription := models.UserSubscription{
-					UserID:       user.ID,
-					PlanName:     freePlan.Name,
-					PlanType:     freePlan.Type,
-					PlanBenefits: freePlan.Benefits,
-					PlanPrice:    freePlan.FinalPrice,
-					PlanDuration: freePlan.DurationDays,
-					Rules:        string(rulesJSON),
-					Status:       "active",
-					StartDate:    startDate,
-					EndDate:      endDate,
-				}
-				db.Create(&subscription)
 			}
 		}
 

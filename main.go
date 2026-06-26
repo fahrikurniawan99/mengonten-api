@@ -53,6 +53,7 @@ func main() {
 	db.Exec("ALTER TABLE users DROP COLUMN IF EXISTS password")
 	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(255) DEFAULT ''")
 	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP")
+	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_requested_at TIMESTAMP")
 
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)

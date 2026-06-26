@@ -22,6 +22,7 @@ type User struct {
 	VerifiedAt        *time.Time `json:"verified_at"`
 	OTPCode           string     `json:"-"`
 	OTPExpiresAt      *time.Time `json:"-"`
+	OTPRequestedAt    *time.Time `json:"-"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 }

@@ -106,28 +106,35 @@ func Login(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 
 		var user models.User
 		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-			utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
+			utils.ErrorResponse(c, http.StatusNotFound, "Email not registered")
 			return
 		}
 
 		if !user.IsVerified {
-			utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
+			utils.ErrorResponse(c, http.StatusBadRequest, "Email not verified yet")
 			return
 		}
 
+		if user.OTPRequestedAt != nil && time.Since(*user.OTPRequestedAt) < 60*time.Second {
+			utils.ErrorResponse(c, http.StatusTooManyRequests, "Mohon tunggu 60 detik sebelum meminta OTP baru")
+			return
+		}
+
+		now := time.Now()
 		otp := generateOTP()
-		otpExpires := time.Now().Add(5 * time.Minute)
+		otpExpires := now.Add(5 * time.Minute)
 
 		db.Model(&user).Updates(map[string]interface{}{
-			"otp_code":       otp,
-			"otp_expires_at": otpExpires,
+			"otp_code":         otp,
+			"otp_expires_at":   otpExpires,
+			"otp_requested_at": now,
 		})
 
 		if emailSender != nil {
 			go emailSender.SendOTPEmail(user.Email, otp)
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "If this email is registered, an OTP has been sent.", nil)
+		utils.SuccessResponse(c, http.StatusOK, "OTP has been sent to your email", nil)
 	}
 }
 
@@ -210,33 +217,40 @@ func AdminLogin(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 
 		var user models.User
 		if err := db.Where("email = ?", req.Email).First(&user).Error; err != nil {
-			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
+			utils.ErrorResponse(c, http.StatusNotFound, "Email not registered as admin")
 			return
 		}
 
 		if user.Role != "admin" {
-			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
+			utils.ErrorResponse(c, http.StatusUnauthorized, "Unauthorized")
 			return
 		}
 
 		if !user.IsVerified {
-			utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
+			utils.ErrorResponse(c, http.StatusBadRequest, "Email not verified yet")
 			return
 		}
 
+		if user.OTPRequestedAt != nil && time.Since(*user.OTPRequestedAt) < 60*time.Second {
+			utils.ErrorResponse(c, http.StatusTooManyRequests, "Mohon tunggu 60 detik sebelum meminta OTP baru")
+			return
+		}
+
+		now := time.Now()
 		otp := generateOTP()
-		otpExpires := time.Now().Add(5 * time.Minute)
+		otpExpires := now.Add(5 * time.Minute)
 
 		db.Model(&user).Updates(map[string]interface{}{
-			"otp_code":       otp,
-			"otp_expires_at": otpExpires,
+			"otp_code":         otp,
+			"otp_expires_at":   otpExpires,
+			"otp_requested_at": now,
 		})
 
 		if emailSender != nil {
 			go emailSender.SendOTPEmail(user.Email, otp)
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "If this email is registered as admin, an OTP has been sent.", nil)
+		utils.SuccessResponse(c, http.StatusOK, "OTP has been sent to your email", nil)
 	}
 }
 

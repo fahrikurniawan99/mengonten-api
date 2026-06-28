@@ -63,7 +63,7 @@ func SubmitYouTubeVideo(db *gorm.DB, processor *worker.YouTubeProcessor) gin.Han
 			return
 		}
 
-		rules := GetUserSubscriptionRules(db, userID.(uuid.UUID))
+		order, rules := GetUserOrder(db, userID.(uuid.UUID))
 		if rules == nil {
 			utils.ErrorResponse(c, http.StatusForbidden, "No active subscription. Please subscribe first.")
 			return
@@ -71,16 +71,18 @@ func SubmitYouTubeVideo(db *gorm.DB, processor *worker.YouTubeProcessor) gin.Han
 		if maxStorageStr, ok := rules["max_storage_mb"]; ok {
 			var maxStorageMB int
 			fmt.Sscanf(maxStorageStr, "%d", &maxStorageMB)
-
-			var subscription models.UserSubscription
-			if err := db.Where("user_id = ? AND status = ?", userID, "active").
-				Order("end_date DESC").First(&subscription).Error; err == nil {
-				usedMB := float64(subscription.StorageUsedBytes) / (1024 * 1024)
-				if maxStorageMB > 0 && int(usedMB) >= maxStorageMB {
-					utils.ErrorResponse(c, http.StatusForbidden,
-						fmt.Sprintf("Storage limit reached (%dMB / %dMB). Please wait or upgrade your plan.", int(usedMB), maxStorageMB))
-					return
+			usedMB := float64(0)
+			if order != nil {
+				var videos []models.YouTubeVideo
+				db.Where("user_id = ? AND status != ?", userID, "failed").Find(&videos)
+				for _, v := range videos {
+					usedMB += float64(v.FileSize) / (1024 * 1024)
 				}
+			}
+			if maxStorageMB > 0 && int(usedMB) >= maxStorageMB {
+				utils.ErrorResponse(c, http.StatusForbidden,
+					fmt.Sprintf("Storage limit reached (%dMB / %dMB). Please wait or upgrade your plan.", int(usedMB), maxStorageMB))
+				return
 			}
 		}
 

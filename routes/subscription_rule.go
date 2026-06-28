@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -198,9 +197,10 @@ func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		var subscription models.UserSubscription
-		err := db.Where("user_id = ? AND status = ?", userID, "active").
-			Order("end_date DESC").First(&subscription).Error
+		var order models.Order
+		err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
+			userID, "active", time.Now()).
+			Order("expired_at DESC").First(&order).Error
 
 		if err != nil {
 			utils.SuccessResponse(c, http.StatusOK, "No active subscription", map[string]interface{}{
@@ -211,38 +211,46 @@ func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		subscription.PrepareResponse()
-		rules := resolveRules(&subscription, db)
+		var orderRules []models.OrderRule
+		db.Where("order_id = ?", order.ID).Find(&orderRules)
+
+		rules := map[string]string{}
+		for _, r := range orderRules {
+			rules[r.RuleKey] = r.RuleValue
+		}
 
 		storageLimitMB := 0
 		if v, ok := rules["max_storage_mb"]; ok {
 			storageLimitMB, _ = strconv.Atoi(v)
 		}
-		storageUsedMB := float64(subscription.StorageUsedBytes) / (1024 * 1024)
 
 		utils.SuccessResponse(c, http.StatusOK, "Subscription rules retrieved", map[string]interface{}{
 			"has_subscription": true,
-			"plan_name":        subscription.PlanName,
-			"plan_type":        subscription.PlanType,
-			"end_date":         subscription.EndDate,
+			"plan_name":        order.ProductName,
+			"end_date":         order.ExpiredAt,
 			"rules":            rules,
 			"usage": map[string]interface{}{
-				"storage_used_bytes": subscription.StorageUsedBytes,
-				"storage_used_mb":    fmt.Sprintf("%.2f", storageUsedMB),
-				"storage_limit_mb":   storageLimitMB,
+				"storage_limit_mb": storageLimitMB,
 			},
 		})
 	}
 }
 
-func GetUserSubscriptionRules(db *gorm.DB, userID uuid.UUID) map[string]string {
-	var subscription models.UserSubscription
-	if err := db.Where("user_id = ? AND status = ? AND end_date > ?",
+func GetUserOrder(db *gorm.DB, userID uuid.UUID) (*models.Order, map[string]string) {
+	var order models.Order
+	if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
 		userID, "active", time.Now()).
-		Order("end_date DESC").First(&subscription).Error; err != nil {
-		return nil
+		Order("expired_at DESC").First(&order).Error; err != nil {
+		return nil, nil
 	}
 
-	subscription.PrepareResponse()
-	return resolveRules(&subscription, db)
+	var orderRules []models.OrderRule
+	db.Where("order_id = ?", order.ID).Find(&orderRules)
+
+	rules := map[string]string{}
+	for _, r := range orderRules {
+		rules[r.RuleKey] = r.RuleValue
+	}
+
+	return &order, rules
 }

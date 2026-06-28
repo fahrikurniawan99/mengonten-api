@@ -40,26 +40,39 @@ func main() {
 		log.Fatal("Failed to connect to database")
 	}
 
-	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.TransactionPreview{}, &models.UserSubscription{}, &models.PaymentProof{}, &models.PaymentProofPhoto{})
+	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.Order{}, &models.OrderRule{})
 
-	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_name")
-	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_type")
-	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_price")
-	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_duration")
-	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS subscription_benefits")
+	db.Migrator().DropTable("user_subscriptions")
+	db.Migrator().DropTable("transaction_previews")
+	db.Migrator().DropTable("payment_proof_photos")
+	db.Migrator().DropTable("payment_proofs")
+
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS amount")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS unique_code")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS total_amount")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS bank_name")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS bank_account_number")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS bank_account_name")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS user_subscription_id")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS expired_at")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS subscription_plan_id UUID")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_url VARCHAR(255) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_code VARCHAR(255) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS duitku_ref VARCHAR(255) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS order_id UUID")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_at TIMESTAMP")
+
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS duration DOUBLE PRECISION DEFAULT 0")
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0")
-	db.Exec("ALTER TABLE users DROP COLUMN IF EXISTS username")
-	db.Exec("ALTER TABLE users DROP COLUMN IF EXISTS password")
-	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code VARCHAR(255) DEFAULT ''")
-	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP")
-	db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_requested_at TIMESTAMP")
 
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)
 
 	resendConfig := config.InitResend()
 	emailSender := worker.NewEmailSender(resendConfig)
+
+	duitkuConfig := config.InitDuitku()
+	duitkuClient := worker.NewDuitkuClient(duitkuConfig)
 
 	ginMode := os.Getenv("GIN_MODE")
 	gin.SetMode(ginMode)
@@ -88,7 +101,7 @@ func main() {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender)
+	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender, duitkuClient)
 
 	port := os.Getenv("PORT")
 	if port == "" {

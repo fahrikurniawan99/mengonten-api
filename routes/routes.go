@@ -10,7 +10,7 @@ import (
 	"mengonten-api/worker"
 )
 
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender, duitkuClient *worker.DuitkuClient) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender, pakasirClient *worker.PakasirClient) {
 	r.GET("/health", func(c *gin.Context) {
 		sqlDB, err := db.DB()
 		if err != nil {
@@ -27,7 +27,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		})
 	})
 
-	r.POST("/callback/duitku", CallbackDuitku(db, duitkuClient))
+	r.POST("/callback/pakasir", CallbackPakasir(db, pakasirClient))
 
 	auth := r.Group("/api/auth")
 	{
@@ -50,7 +50,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))
 		user.DELETE("/youtube/segments/:segment_id", DeleteVideoSegment(db))
 
-		user.POST("/transactions", CreateTransaction(db, duitkuClient))
+		user.POST("/transactions", CreateTransaction(db, pakasirClient))
 		user.GET("/transactions", GetMyTransactions(db))
 		user.GET("/transactions/:transaction_id", GetTransactionDetail(db))
 		user.GET("/subscription/check", CheckActiveSubscription(db))

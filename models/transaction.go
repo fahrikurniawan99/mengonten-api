@@ -13,9 +13,8 @@ type Transaction struct {
 	ReferenceID       string     `gorm:"uniqueIndex;not null" json:"reference_id"`
 	PaymentTotal      float64    `gorm:"not null" json:"payment_total"`
 	Status            string     `gorm:"default:'pending';not null" json:"status"`
-	PaymentURL        string     `json:"payment_url"`
-	PaymentCode       string     `json:"payment_code"`
-	DuitkuRef         string     `json:"duitku_ref"`
+	PaymentMethod     string     `json:"payment_method"`
+	PaymentNumber     string     `json:"payment_number"`
 	OrderID           *uuid.UUID `gorm:"type:uuid;index" json:"order_id"`
 	PaymentAt         *time.Time `json:"payment_at"`
 	CreatedAt         time.Time  `json:"created_at"`

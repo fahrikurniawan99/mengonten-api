@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -252,6 +253,7 @@ func buildTransactionTemplate(referenceID, planName string, amount float64, paym
 
 	var paymentInstructions string
 	if paymentMethod == "qris" {
+		qrURL := fmt.Sprintf("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=%s", url.QueryEscape(paymentNumber))
 		paymentInstructions = fmt.Sprintf(`<table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border-radius:12px;border:1px solid #fecaca;margin:16px 0;">
                 <tr>
                   <td style="padding:20px 24px;">
@@ -259,13 +261,17 @@ func buildTransactionTemplate(referenceID, planName string, amount float64, paym
                     <ol style="margin:0;padding-left:20px;color:#64748b;font-size:13px;line-height:1.8;">
                       <li>Buka aplikasi GoPay, ShopeePay, OVO, atau mobile banking yang mendukung QRIS.</li>
                       <li>Pilih menu Scan / Bayar QR.</li>
-                      <li>Scan kode QR atau masukkan kode berikut:</li>
+                      <li>Scan kode QR di bawah ini:</li>
                     </ol>
-                    <p style="margin:12px 0 0;padding:12px;background:#ffffff;border-radius:8px;font-family:monospace;font-size:13px;color:#1a1a2e;word-break:break-all;text-align:center;">%s</p>
+                    <div style="text-align:center;margin:16px 0;">
+                      <img src="%s" alt="QR Code" style="display:inline-block;max-width:200px;border-radius:8px;">
+                    </div>
+                    <p style="margin:0 0 8px;color:#64748b;font-size:12px;text-align:center;">Atau gunakan kode berikut:</p>
+                    <p style="margin:0;padding:12px;background:#ffffff;border-radius:8px;font-family:monospace;font-size:13px;color:#1a1a2e;word-break:break-all;text-align:center;">%s</p>
                     <p style="margin:12px 0 0;color:#dc2626;font-size:13px;font-weight:600;text-align:center;">Total Pembayaran: Rp %s</p>
                   </td>
                 </tr>
-              </table>`, paymentNumber, formatPriceIDR(amount))
+              </table>`, qrURL, paymentNumber, formatPriceIDR(amount))
 	} else {
 		paymentInstructions = fmt.Sprintf(`<table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border-radius:12px;border:1px solid #fecaca;margin:16px 0;">
                 <tr>

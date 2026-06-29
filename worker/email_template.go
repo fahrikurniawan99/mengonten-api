@@ -417,3 +417,106 @@ func formatPriceIDR(price float64) string {
 	}
 	return strings.Join(parts, ".")
 }
+
+func buildReminderTemplate(planID, planName, expiredAt, daysLeft, subject string, price float64) string {
+	var message string
+	switch daysLeft {
+	case "7":
+		message = "Langganan Anda akan berakhir dalam <strong>7 hari</strong>. Jangan lewatkan layanan Mengonten Anda!"
+	case "3":
+		message = "Langganan Anda akan berakhir dalam <strong>3 hari</strong>. Segera perpanjang untuk terus menikmati fitur lengkap."
+	case "1":
+		message = "Langganan Anda akan <strong>berakhir besok!</strong> Perpanjang sekarang agar tidak kehilangan akses."
+	default:
+		message = fmt.Sprintf("Langganan Anda akan berakhir dalam %s hari. Segera perpanjang.", daysLeft)
+	}
+
+	checkoutURL := fmt.Sprintf("https://mengonten.tiroe.io/workspace/checkout?plan_id=%s&plan=%s&price=%.0f",
+		planID, url.QueryEscape(planName), price)
+
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>%s</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f7fa;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+  <table width="100%%" cellpadding="0" cellspacing="0" style="background-color:#f4f7fa;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+
+          <tr>
+            <td style="padding:36px 48px;text-align:center;">
+              <img src="https://cdn-mengonten.tiroe.io/assets/logo_horizontal.png" alt="Mengonten" style="max-width:200px;height:auto;display:block;margin:0 auto;">
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 48px 24px;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;font-size:22px;font-weight:600;">
+                %s
+              </h2>
+              <p style="margin:0 0 16px;color:#64748b;font-size:15px;line-height:1.6;">
+                %s
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 48px;">
+              <table width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                <tr>
+                  <td style="padding:12px 16px;background-color:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;width:40%%;">Paket</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;color:#1a1a2e;font-size:14px;font-weight:600;">%s</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 16px;background-color:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;">Berakhir pada</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #e2e8f0;color:#dc2626;font-size:14px;font-weight:600;">%s</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 48px 32px;">
+              <table width="100%%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="%s"
+                       style="display:inline-block;background:#FF0000;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 48px;border-radius:10px;letter-spacing:0.5px;">
+                       PERPANJANG SEKARANG
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background-color:#f8fafc;padding:24px 48px;border-top:1px solid #e2e8f0;">
+              <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.6;">
+                Setelah masa aktif berakhir, akun Anda akan beralih ke paket Free secara otomatis.<br>
+                Jika ada pertanyaan, hubungi tim support kami.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:16px 48px;text-align:center;">
+              <p style="margin:0;color:#cbd5e1;font-size:11px;">
+                &copy; 2026 Mengonten. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`, subject, subject, message, planName, expiredAt, checkoutURL)
+}

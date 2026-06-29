@@ -88,6 +88,7 @@ func main() {
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_total DOUBLE PRECISION DEFAULT 0")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS product_name VARCHAR(255) DEFAULT ''")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS expired_at TIMESTAMP")
+	db.Exec("ALTER TABLE orders ADD COLUMN IF NOT EXISTS last_reminder_sent_at TIMESTAMP")
 
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS duration DOUBLE PRECISION DEFAULT 0")
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0")

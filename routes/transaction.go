@@ -64,11 +64,11 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 
 		if plan.FinalPrice > 0 {
 			var activeOrder models.Order
-			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
-				userID, "active", time.Now()).
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ? AND plan_id != ?",
+				userID, "active", time.Now(), plan.ID).
 				Order("expired_at DESC").
 				First(&activeOrder).Error; err == nil {
-				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif. Selesaikan langganan saat ini sebelum berlangganan baru.")
+				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif dengan paket berbeda. Selesaikan langganan saat ini sebelum berlangganan baru.")
 				return
 			}
 		}
@@ -196,9 +196,21 @@ func CallbackPakasir(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.Handl
 				return
 			}
 
+			var existingOrder models.Order
+			if err := db.Where("user_id = ? AND status = ? AND plan_id = ? AND expired_at > ?",
+				transaction.UserID, "active", plan.ID, time.Now()).
+				Order("expired_at DESC").
+				First(&existingOrder).Error; err == nil {
+				db.Model(&existingOrder).Update("expired_at",
+					existingOrder.ExpiredAt.AddDate(0, 0, plan.DurationDays))
+				db.Model(&transaction).Update("order_id", existingOrder.ID)
+				c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Subscription extended"})
+				return
+			}
+
 			var activeOrder models.Order
-			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
-				transaction.UserID, "active", time.Now()).
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ? AND plan_id != ?",
+				transaction.UserID, "active", time.Now(), plan.ID).
 				Order("expired_at DESC").
 				First(&activeOrder).Error; err == nil {
 				if activeOrder.ProductPrice > 0 {
@@ -403,9 +415,22 @@ func UpdateTransactionStatus(db *gorm.DB) gin.HandlerFunc {
 				return
 			}
 
+			var existingOrder models.Order
+			if err := db.Where("user_id = ? AND status = ? AND plan_id = ? AND expired_at > ?",
+				transaction.UserID, "active", plan.ID, time.Now()).
+				Order("expired_at DESC").
+				First(&existingOrder).Error; err == nil {
+				db.Model(&existingOrder).Update("expired_at",
+					existingOrder.ExpiredAt.AddDate(0, 0, plan.DurationDays))
+				db.Model(&transaction).Update("order_id", existingOrder.ID)
+				db.First(&transaction, parsedID)
+				utils.SuccessResponse(c, http.StatusOK, "Subscription extended", transaction)
+				return
+			}
+
 			var activeOrder models.Order
-			if err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
-				transaction.UserID, "active", time.Now()).
+			if err := db.Where("user_id = ? AND status = ? AND expired_at > ? AND plan_id != ?",
+				transaction.UserID, "active", time.Now(), plan.ID).
 				Order("expired_at DESC").
 				First(&activeOrder).Error; err == nil {
 				if activeOrder.ProductPrice > 0 {

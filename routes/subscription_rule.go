@@ -2,7 +2,6 @@ package routes
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -179,60 +178,6 @@ func DeletePlanRule(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		utils.SuccessResponse(c, http.StatusOK, "Rule deleted successfully", nil)
-	}
-}
-
-// @Summary Get my active subscription rules
-// @Description Cek rules dan usage dari langganan aktif user
-// @Tags Subscription Rule
-// @Produce json
-// @Security Bearer
-// @Success 200 {object} utils.Response "Active subscription rules + usage"
-// @Router /api/subscription/rules [get]
-func GetMySubscriptionRules(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		userID, exists := c.Get("user_id")
-		if !exists {
-			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
-			return
-		}
-
-		var order models.Order
-		err := db.Where("user_id = ? AND status = ? AND expired_at > ?",
-			userID, "active", time.Now()).
-			Order("expired_at DESC").First(&order).Error
-
-		if err != nil {
-			utils.SuccessResponse(c, http.StatusOK, "No active subscription", map[string]interface{}{
-				"has_subscription": false,
-				"rules":            map[string]interface{}{},
-				"usage":            map[string]interface{}{},
-			})
-			return
-		}
-
-		var orderRules []models.OrderRule
-		db.Where("order_id = ?", order.ID).Find(&orderRules)
-
-		rules := map[string]string{}
-		for _, r := range orderRules {
-			rules[r.RuleKey] = r.RuleValue
-		}
-
-		storageLimitMB := 0
-		if v, ok := rules["max_storage_mb"]; ok {
-			storageLimitMB, _ = strconv.Atoi(v)
-		}
-
-		utils.SuccessResponse(c, http.StatusOK, "Subscription rules retrieved", map[string]interface{}{
-			"has_subscription": true,
-			"plan_name":        order.ProductName,
-			"end_date":         order.ExpiredAt,
-			"rules":            rules,
-			"usage": map[string]interface{}{
-				"storage_limit_mb": storageLimitMB,
-			},
-		})
 	}
 }
 

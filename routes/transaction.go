@@ -309,6 +309,7 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 			"status":              transaction.Status,
 			"payment_method":      transaction.PaymentMethod,
 			"payment_number":      transaction.PaymentNumber,
+			"expired_at":          transaction.ExpiredAt,
 			"order_id":            transaction.OrderID,
 			"payment_at":          transaction.PaymentAt,
 			"created_at":          transaction.CreatedAt,

@@ -42,6 +42,28 @@ func main() {
 
 	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.Order{}, &models.OrderRule{})
 
+	db.Exec(`CREATE TABLE IF NOT EXISTS orders (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id UUID NOT NULL,
+		transaction_id UUID NOT NULL,
+		plan_id UUID NOT NULL,
+		product_name VARCHAR(255) NOT NULL,
+		product_price DOUBLE PRECISION NOT NULL,
+		status VARCHAR(50) NOT NULL DEFAULT 'pending',
+		expired_at TIMESTAMP,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS order_rules (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		order_id UUID NOT NULL,
+		subscription_rule_id UUID,
+		rule_key VARCHAR(255) NOT NULL,
+		rule_value VARCHAR(255) NOT NULL,
+		created_at TIMESTAMP
+	)`)
+
 	db.Migrator().DropTable("user_subscriptions")
 	db.Migrator().DropTable("transaction_previews")
 	db.Migrator().DropTable("payment_proof_photos")
@@ -63,6 +85,7 @@ func main() {
 	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS duitku_ref")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS order_id UUID")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_at TIMESTAMP")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_total DOUBLE PRECISION DEFAULT 0")
 
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS duration DOUBLE PRECISION DEFAULT 0")
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0")

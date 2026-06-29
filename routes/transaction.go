@@ -2,6 +2,7 @@ package routes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -93,9 +94,13 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 			result, err := pakasirClient.CreateTransaction(referenceID, amount, req.PaymentMethod)
 			if err != nil {
 				db.Delete(&transaction)
+				log.Printf("[Transaction] Pakasir create failed: %v", err)
 				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create payment: "+err.Error())
 				return
 			}
+
+			log.Printf("[Transaction] Pakasir success: ref=%s method=%s number=%s",
+				referenceID, result.PaymentMethod, result.PaymentNumber)
 
 			db.Model(&transaction).Updates(map[string]interface{}{
 				"payment_number": result.PaymentNumber,
@@ -129,14 +134,14 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 	}
 }
 
-// @Summary Duitku payment callback
-// @Description Webhook dari Duitku untuk update status transaksi
+// @Summary Pakasir payment callback
+// @Description Webhook dari Pakasir untuk update status transaksi
 // @Tags Transaction
 // @Accept json
 // @Produce json
 // @Param request body object false "Callback params"
 // @Success 200 {object} utils.Response "Callback processed"
-// @Router /callback/duitku [post]
+// @Router /callback/pakasir [post]
 func CallbackPakasir(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var params worker.WebhookParams
@@ -154,9 +159,13 @@ func CallbackPakasir(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.Handl
 
 		var transaction models.Transaction
 		if err := db.Where("reference_id = ?", params.OrderID).First(&transaction).Error; err != nil {
+			log.Printf("[Callback] Transaction not found: order=%s", params.OrderID)
 			utils.ErrorResponse(c, http.StatusNotFound, "Transaction not found")
 			return
 		}
+
+		log.Printf("[Callback] Pakasir webhook: order=%s status=%s amount=%.0f method=%s",
+			params.OrderID, params.Status, params.Amount, params.PaymentMethod)
 
 		if transaction.Status != "pending" {
 			c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "already processed"})

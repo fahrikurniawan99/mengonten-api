@@ -107,12 +107,12 @@ func (es *EmailSender) SendTransactionEmail(toEmail, userName, referenceID, plan
 	return nil
 }
 
-func (es *EmailSender) SendExpiryReminder(toEmail, planName, expiredAt string, daysLeft int, subject string) error {
+func (es *EmailSender) SendExpiryReminder(toEmail, planID, planName, expiredAt string, daysLeft int, subject string, price float64) error {
 	if es == nil {
 		return fmt.Errorf("email sender not configured")
 	}
 
-	htmlBody := buildReminderTemplate(planName, expiredAt, fmt.Sprintf("%d", daysLeft), subject)
+	htmlBody := buildReminderTemplate(planID, planName, expiredAt, fmt.Sprintf("%d", daysLeft), subject, price)
 
 	params := &resend.SendEmailRequest{
 		From:    es.FromEmail,

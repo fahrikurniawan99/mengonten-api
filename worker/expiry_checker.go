@@ -155,7 +155,7 @@ func sendReminders(db *gorm.DB, es *EmailSender) int {
 			subject = fmt.Sprintf("Langganan akan berakhir dalam %d hari", daysLeft)
 		}
 
-		err := es.SendExpiryReminder(user.Email, o.ProductName, expiredAt, daysLeft, subject)
+		err := es.SendExpiryReminder(user.Email, o.PlanID.String(), o.ProductName, expiredAt, daysLeft, subject, o.ProductPrice)
 		if err != nil {
 			log.Printf("[ExpiryCheck] Failed to send reminder to %s: %v", user.Email, err)
 			continue

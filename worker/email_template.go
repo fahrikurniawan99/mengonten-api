@@ -418,7 +418,7 @@ func formatPriceIDR(price float64) string {
 	return strings.Join(parts, ".")
 }
 
-func buildReminderTemplate(planName, expiredAt, daysLeft, subject string) string {
+func buildReminderTemplate(planID, planName, expiredAt, daysLeft, subject string, price float64) string {
 	var message string
 	switch daysLeft {
 	case "7":
@@ -430,6 +430,9 @@ func buildReminderTemplate(planName, expiredAt, daysLeft, subject string) string
 	default:
 		message = fmt.Sprintf("Langganan Anda akan berakhir dalam %s hari. Segera perpanjang.", daysLeft)
 	}
+
+	checkoutURL := fmt.Sprintf("https://mengonten.tiroe.io/workspace/checkout?plan_id=%s&plan=%s&price=%.0f",
+		planID, url.QueryEscape(planName), price)
 
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html lang="en">
@@ -482,7 +485,7 @@ func buildReminderTemplate(planName, expiredAt, daysLeft, subject string) string
               <table width="100%%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="https://mengonten.tiroe.io/subscription"
+                    <a href="%s"
                        style="display:inline-block;background:#FF0000;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;padding:14px 48px;border-radius:10px;letter-spacing:0.5px;">
                        PERPANJANG SEKARANG
                     </a>
@@ -515,5 +518,5 @@ func buildReminderTemplate(planName, expiredAt, daysLeft, subject string) string
   </table>
 
 </body>
-</html>`, subject, subject, message, planName, expiredAt)
+</html>`, subject, subject, message, planName, expiredAt, checkoutURL)
 }

@@ -80,6 +80,7 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 			UserID:             userID.(uuid.UUID),
 			SubscriptionPlanID: plan.ID,
 			ReferenceID:        referenceID,
+			ProductName:        fmt.Sprintf("%s (%d hari)", plan.Name, plan.DurationDays),
 			PaymentTotal:       plan.FinalPrice,
 			PaymentMethod:      req.PaymentMethod,
 			Status:             "pending",

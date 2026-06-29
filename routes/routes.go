@@ -60,6 +60,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 
 	r.GET("/api/bank-accounts", GetActiveBankAccounts(db))
 	r.GET("/api/subscription-plans", GetActivePlans(db))
+	r.GET("/api/subscription-plans/:plan_id", GetPlanByID(db))
 
 	admin := r.Group("/api/admin")
 	admin.Use(middleware.AuthMiddleware())

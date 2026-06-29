@@ -17,6 +17,7 @@ type Transaction struct {
 	Status            string     `gorm:"default:'pending';not null" json:"status"`
 	PaymentMethod     string     `json:"payment_method"`
 	PaymentNumber     string     `json:"payment_number"`
+	ExpiredAt         *time.Time `json:"expired_at"`
 	OrderID           *uuid.UUID `gorm:"type:uuid;index" json:"order_id"`
 	PaymentAt         *time.Time `json:"payment_at"`
 	CreatedAt         time.Time  `json:"created_at"`

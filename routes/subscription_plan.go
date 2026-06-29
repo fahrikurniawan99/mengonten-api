@@ -75,6 +75,33 @@ func GetActivePlans(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Get subscription plan by ID (public)
+// @Description Detail subscription plan
+// @Tags Subscription Plan
+// @Produce json
+// @Param plan_id path string true "Plan ID"
+// @Success 200 {object} utils.Response "Plan detail"
+// @Router /api/subscription-plans/{plan_id} [get]
+func GetPlanByID(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		planID := c.Param("plan_id")
+		parsedID, err := uuid.Parse(planID)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid plan ID")
+			return
+		}
+
+		var plan models.SubscriptionPlan
+		if err := db.First(&plan, parsedID).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusNotFound, "Plan not found")
+			return
+		}
+
+		plan.PrepareResponse()
+		utils.SuccessResponse(c, http.StatusOK, "Plan retrieved", plan)
+	}
+}
+
 // @Summary Create subscription plan (admin)
 // @Description Tambah plan baru - admin only
 // @Tags Subscription Plan

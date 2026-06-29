@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -86,6 +87,8 @@ func (c *PakasirClient) CreateTransaction(orderID string, amount int64, method s
 		APIKey:  c.Config.APIKey,
 	}
 
+	log.Printf("[Pakasir] Creating transaction: order=%s amount=%d method=%s", orderID, amount, method)
+
 	bodyJSON, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -111,6 +114,8 @@ func (c *PakasirClient) CreateTransaction(orderID string, amount int64, method s
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+	log.Printf("[Pakasir] Response status=%d body=%s", resp.StatusCode, string(body))
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("pakasir returned status %d: %s", resp.StatusCode, string(body))
 	}
@@ -120,6 +125,10 @@ func (c *PakasirClient) CreateTransaction(orderID string, amount int64, method s
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	log.Printf("[Pakasir] Payment created: ref=%s method=%s number=%s expired=%s",
+		result.Payment.OrderID, result.Payment.PaymentMethod,
+		result.Payment.PaymentNumber, result.Payment.ExpiredAt)
+
 	return &result.Payment, nil
 }
 
@@ -127,6 +136,8 @@ func (c *PakasirClient) CancelTransaction(orderID string, amount int64) error {
 	if c.Config == nil || c.Config.APIKey == "" {
 		return fmt.Errorf("pakasir not configured")
 	}
+
+	log.Printf("[Pakasir] Cancelling transaction: order=%s amount=%d", orderID, amount)
 
 	reqBody := CancelTransactionRequest{
 		Project: c.Config.Project,
@@ -166,5 +177,8 @@ func (c *PakasirClient) VerifyWebhook(params *WebhookParams) bool {
 	if c.Config == nil {
 		return false
 	}
-	return params.Project == c.Config.Project && (params.Status == "completed" || params.Status == "success")
+	valid := params.Project == c.Config.Project && (params.Status == "completed" || params.Status == "success")
+	log.Printf("[Pakasir] Webhook: order=%s status=%s amount=%d project=%s valid=%v",
+		params.OrderID, params.Status, params.Amount, params.Project, valid)
+	return valid
 }

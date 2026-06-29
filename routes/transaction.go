@@ -103,28 +103,35 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 			log.Printf("[Transaction] Pakasir success: ref=%s method=%s number=%s",
 				referenceID, result.PaymentMethod, result.PaymentNumber)
 
+			var expiredAtTime *time.Time
+			if result.ExpiredAt != "" {
+				t, err := time.Parse(time.RFC3339Nano, result.ExpiredAt)
+				if err == nil {
+					expiredAtTime = &t
+				}
+			}
+
 			db.Model(&transaction).Updates(map[string]interface{}{
 				"payment_number": result.PaymentNumber,
 				"payment_method": result.PaymentMethod,
+				"expired_at":     expiredAtTime,
 			})
 			transaction.PaymentNumber = result.PaymentNumber
 			transaction.PaymentMethod = result.PaymentMethod
+			transaction.ExpiredAt = expiredAtTime
 
 			if emailSender != nil {
 				var user models.User
 				if err := db.First(&user, userID).Error; err == nil {
-					expiredAt := "24 jam"
-					if result.ExpiredAt != "" {
-						t, err := time.Parse(time.RFC3339Nano, result.ExpiredAt)
-						if err == nil {
-							expiredAt = t.Format("02 Jan 2006, 15:04 WIB")
-						}
+					expiredAtDisplay := "24 jam"
+					if expiredAtTime != nil {
+						expiredAtDisplay = expiredAtTime.Format("02 Jan 2006, 15:04 WIB")
 					}
 					go emailSender.SendTransactionEmail(
 						user.Email, "",
 						transaction.ReferenceID, plan.Name,
 						transaction.PaymentTotal, transaction.PaymentMethod,
-						transaction.PaymentNumber, expiredAt,
+						transaction.PaymentNumber, expiredAtDisplay,
 					)
 				}
 			}

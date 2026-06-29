@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Transaction struct {
@@ -11,6 +12,7 @@ type Transaction struct {
 	UserID            uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
 	SubscriptionPlanID uuid.UUID `gorm:"type:uuid;not null" json:"subscription_plan_id"`
 	ReferenceID       string     `gorm:"uniqueIndex;not null" json:"reference_id"`
+	ProductName       string     `json:"product_name"`
 	PaymentTotal      float64    `gorm:"not null" json:"payment_total"`
 	Status            string     `gorm:"default:'pending';not null" json:"status"`
 	PaymentMethod     string     `json:"payment_method"`
@@ -41,6 +43,16 @@ type Order struct {
 
 func (Order) TableName() string {
 	return "orders"
+}
+
+func (o *Order) BeforeCreate(tx *gorm.DB) (err error) {
+	if o.ExpiredAt.IsZero() {
+		var plan SubscriptionPlan
+		if err := tx.First(&plan, o.PlanID).Error; err == nil {
+			o.ExpiredAt = time.Now().AddDate(0, 0, plan.DurationDays)
+		}
+	}
+	return
 }
 
 type OrderRule struct {

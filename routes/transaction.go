@@ -293,7 +293,19 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		data := map[string]interface{}{
-			"transaction": transaction,
+			"id":                  transaction.ID,
+			"user_id":             transaction.UserID,
+			"subscription_plan_id": transaction.SubscriptionPlanID,
+			"reference_id":        transaction.ReferenceID,
+			"product_name":        transaction.ProductName,
+			"payment_total":       transaction.PaymentTotal,
+			"status":              transaction.Status,
+			"payment_method":      transaction.PaymentMethod,
+			"payment_number":      transaction.PaymentNumber,
+			"order_id":            transaction.OrderID,
+			"payment_at":          transaction.PaymentAt,
+			"created_at":          transaction.CreatedAt,
+			"updated_at":          transaction.UpdatedAt,
 		}
 
 		if transaction.OrderID != nil {

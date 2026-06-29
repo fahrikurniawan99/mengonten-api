@@ -11,6 +11,13 @@ import (
 	"mengonten-api/utils"
 )
 
+// @Summary Get my orders (user)
+// @Description List semua order/langganan milik user
+// @Tags Order
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} utils.Response "My orders"
+// @Router /api/orders [get]
 func GetMyOrders(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
@@ -36,6 +43,13 @@ func GetMyOrders(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary Check active subscription
+// @Description Cek langganan aktif + rules + usage
+// @Tags Order
+// @Produce json
+// @Security Bearer
+// @Success 200 {object} utils.Response "Subscription status"
+// @Router /api/orders/subscription [get]
 func CheckActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")

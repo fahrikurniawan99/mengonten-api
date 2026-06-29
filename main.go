@@ -56,9 +56,11 @@ func main() {
 	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS user_subscription_id")
 	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS expired_at")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS subscription_plan_id UUID")
-	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_url VARCHAR(255) DEFAULT ''")
-	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_code VARCHAR(255) DEFAULT ''")
-	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS duitku_ref VARCHAR(255) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(50) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_number VARCHAR(255) DEFAULT ''")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS payment_url")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS payment_code")
+	db.Exec("ALTER TABLE transactions DROP COLUMN IF EXISTS duitku_ref")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS order_id UUID")
 	db.Exec("ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_at TIMESTAMP")
 
@@ -71,8 +73,8 @@ func main() {
 	resendConfig := config.InitResend()
 	emailSender := worker.NewEmailSender(resendConfig)
 
-	duitkuConfig := config.InitDuitku()
-	duitkuClient := worker.NewDuitkuClient(duitkuConfig)
+	pakasirConfig := config.InitPakasir()
+	pakasirClient := worker.NewPakasirClient(pakasirConfig)
 
 	ginMode := os.Getenv("GIN_MODE")
 	gin.SetMode(ginMode)
@@ -101,7 +103,7 @@ func main() {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender, duitkuClient)
+	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender, pakasirClient)
 
 	port := os.Getenv("PORT")
 	if port == "" {

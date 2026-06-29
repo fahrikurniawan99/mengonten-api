@@ -15,6 +15,7 @@ import (
 
 type CreateTransactionRequest struct {
 	SubscriptionPlanID uuid.UUID `json:"subscription_plan_id" binding:"required"`
+	PaymentMethod      string    `json:"payment_method" binding:"required"`
 }
 
 func generateTransactionReferenceID() string {
@@ -30,7 +31,7 @@ func generateTransactionReferenceID() string {
 // @Param request body CreateTransactionRequest true "Plan ID"
 // @Success 201 {object} utils.Response "Transaction created"
 // @Router /api/transactions [post]
-func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerFunc {
+func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
@@ -41,6 +42,11 @@ func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.Handl
 		var req CreateTransactionRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid request format")
+			return
+		}
+
+		if !worker.IsValidPakasirMethod(req.PaymentMethod) {
+			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid payment method")
 			return
 		}
 
@@ -66,12 +72,6 @@ func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.Handl
 			}
 		}
 
-		var user models.User
-		if err := db.First(&user, userID).Error; err != nil {
-			utils.ErrorResponse(c, http.StatusNotFound, "User not found")
-			return
-		}
-
 		referenceID := generateTransactionReferenceID()
 		amount := int64(plan.FinalPrice)
 
@@ -80,6 +80,7 @@ func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.Handl
 			SubscriptionPlanID: plan.ID,
 			ReferenceID:        referenceID,
 			PaymentTotal:       plan.FinalPrice,
+			PaymentMethod:      req.PaymentMethod,
 			Status:             "pending",
 		}
 
@@ -88,23 +89,23 @@ func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.Handl
 			return
 		}
 
-		if duitkuClient != nil && amount > 0 {
-			result, err := duitkuClient.CreateInvoice(amount, transaction.ID.String(), user.Email)
+		if pakasirClient != nil && amount > 0 {
+			result, err := pakasirClient.CreateTransaction(referenceID, amount, req.PaymentMethod)
 			if err != nil {
 				db.Delete(&transaction)
-				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create payment invoice: "+err.Error())
+				utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to create payment: "+err.Error())
 				return
 			}
 
 			db.Model(&transaction).Updates(map[string]interface{}{
-				"payment_url":  result.PaymentURL,
-				"payment_code": result.Reference,
-				"duitku_ref":   result.Reference,
+				"payment_number": result.PaymentNumber,
+				"payment_method": result.PaymentMethod,
 			})
-			transaction.PaymentURL = result.PaymentURL
-			transaction.PaymentCode = result.Reference
+			transaction.PaymentNumber = result.PaymentNumber
+			transaction.PaymentMethod = result.PaymentMethod
 		}
 
+		db.First(&transaction, transaction.ID)
 		utils.SuccessResponse(c, http.StatusCreated, "Transaction created", transaction)
 	}
 }
@@ -117,29 +118,23 @@ func CreateTransaction(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.Handl
 // @Param request body object false "Callback params"
 // @Success 200 {object} utils.Response "Callback processed"
 // @Router /callback/duitku [post]
-func CallbackDuitku(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerFunc {
+func CallbackPakasir(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var params worker.CallbackParams
-		if err := c.ShouldBind(&params); err != nil {
+		var params worker.WebhookParams
+		if err := c.ShouldBindJSON(&params); err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid callback data")
 			return
 		}
 
-		if duitkuClient != nil {
-			if !duitkuClient.VerifyCallback(&params) {
-				utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid signature")
+		if pakasirClient != nil {
+			if !pakasirClient.VerifyWebhook(&params) {
+				utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid webhook")
 				return
 			}
 		}
 
-		transactionID, err := uuid.Parse(params.MerchantOrderID)
-		if err != nil {
-			utils.ErrorResponse(c, http.StatusBadRequest, "Invalid merchant order ID")
-			return
-		}
-
 		var transaction models.Transaction
-		if err := db.First(&transaction, transactionID).Error; err != nil {
+		if err := db.Where("reference_id = ?", params.OrderID).First(&transaction).Error; err != nil {
 			utils.ErrorResponse(c, http.StatusNotFound, "Transaction not found")
 			return
 		}
@@ -149,17 +144,15 @@ func CallbackDuitku(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerF
 			return
 		}
 
-		updates := map[string]interface{}{
-			"payment_code": params.PaymentCode,
-		}
+		updates := map[string]interface{}{}
 
-		if params.ResultCode == "00" {
+		if params.Status == "completed" || params.Status == "success" {
 			now := time.Now()
 			updates["status"] = "success"
 			updates["payment_at"] = &now
 
 			db.Model(&transaction).Updates(updates)
-			db.First(&transaction, transactionID)
+			db.First(&transaction, transaction.ID)
 
 			var plan models.SubscriptionPlan
 			if err := db.First(&plan, transaction.SubscriptionPlanID).Error; err != nil {
@@ -207,9 +200,6 @@ func CallbackDuitku(db *gorm.DB, duitkuClient *worker.DuitkuClient) gin.HandlerF
 
 			db.Model(&transaction).Update("order_id", order.ID)
 
-		} else if params.ResultCode == "01" {
-			updates["status"] = "failed"
-			db.Model(&transaction).Updates(updates)
 		} else {
 			updates["status"] = "failed"
 			db.Model(&transaction).Updates(updates)

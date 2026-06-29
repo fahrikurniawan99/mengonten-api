@@ -14,6 +14,7 @@ RUN go install github.com/swaggo/swag/cmd/swag@latest
 RUN swag init
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/mengonten-api .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /app/expiry_check ./cmd/expiry_check/
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim
@@ -32,6 +33,7 @@ RUN mkdir -p /app/uploads
 WORKDIR /app
 
 COPY --from=builder /app/mengonten-api .
+COPY --from=builder /app/expiry_check .
 
 EXPOSE 8080
 

@@ -29,17 +29,18 @@ func (Transaction) TableName() string {
 }
 
 type Order struct {
-	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID        uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	TransactionID uuid.UUID  `gorm:"type:uuid;not null;index" json:"transaction_id"`
-	PlanID        uuid.UUID  `gorm:"type:uuid;not null" json:"plan_id"`
-	ProductName   string     `gorm:"not null" json:"product_name"`
-	ProductPrice  float64    `gorm:"not null" json:"product_price"`
-	Status        string     `gorm:"default:'pending';not null" json:"status"`
-	ExpiredAt     time.Time  `json:"expired_at"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-	Rules         []OrderRule `gorm:"foreignKey:OrderID" json:"-"`
+	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID            uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
+	TransactionID     uuid.UUID  `gorm:"type:uuid;not null;index" json:"transaction_id"`
+	PlanID            uuid.UUID  `gorm:"type:uuid;not null" json:"plan_id"`
+	ProductName       string     `gorm:"not null" json:"product_name"`
+	ProductPrice      float64    `gorm:"not null" json:"product_price"`
+	Status            string     `gorm:"default:'pending';not null" json:"status"`
+	ExpiredAt         time.Time  `json:"expired_at"`
+	LastReminderSentAt *time.Time `json:"-"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	Rules             []OrderRule `gorm:"foreignKey:OrderID" json:"-"`
 }
 
 func (Order) TableName() string {

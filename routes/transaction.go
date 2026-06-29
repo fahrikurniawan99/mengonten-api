@@ -31,7 +31,7 @@ func generateTransactionReferenceID() string {
 // @Param request body CreateTransactionRequest true "Plan ID"
 // @Success 201 {object} utils.Response "Transaction created"
 // @Router /api/transactions [post]
-func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.HandlerFunc {
+func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSender *worker.EmailSender) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := c.Get("user_id")
 		if !exists {
@@ -103,6 +103,25 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.Han
 			})
 			transaction.PaymentNumber = result.PaymentNumber
 			transaction.PaymentMethod = result.PaymentMethod
+
+			if emailSender != nil {
+				var user models.User
+				if err := db.First(&user, userID).Error; err == nil {
+					expiredAt := "24 jam"
+					if result.ExpiredAt != "" {
+						t, err := time.Parse(time.RFC3339Nano, result.ExpiredAt)
+						if err == nil {
+							expiredAt = t.Format("02 Jan 2006, 15:04 WIB")
+						}
+					}
+					go emailSender.SendTransactionEmail(
+						user.Email, "",
+						transaction.ReferenceID, plan.Name,
+						transaction.PaymentTotal, transaction.PaymentMethod,
+						transaction.PaymentNumber, expiredAt,
+					)
+				}
+			}
 		}
 
 		db.First(&transaction, transaction.ID)

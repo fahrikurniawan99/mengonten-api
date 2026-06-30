@@ -370,7 +370,6 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 			var existing models.Order
 			if db.Where("user_id = ? AND status = ?", user.ID, "active").First(&existing).Error != nil {
 				now := time.Now()
-				endDate := now.AddDate(0, 0, freePlan.DurationDays)
 
 				dummyTxn := models.Transaction{
 					UserID:             user.ID,
@@ -389,7 +388,6 @@ func VerifyEmail(db *gorm.DB, emailSender *worker.EmailSender) gin.HandlerFunc {
 					ProductName:   freePlan.Name,
 					ProductPrice:  freePlan.FinalPrice,
 					Status:        "active",
-					ExpiredAt:     endDate,
 				}
 				db.Create(&order)
 

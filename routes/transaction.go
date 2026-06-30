@@ -66,6 +66,7 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 			var activeOrder models.Order
 			if err := db.Where("user_id = ? AND status = ? AND expired_at > ? AND plan_id != ?",
 				userID, "active", time.Now(), plan.ID).
+				Not("plan_id = ?", "85052fb1-7a58-4951-957f-36ce2e5588f6").
 				Order("expired_at DESC").
 				First(&activeOrder).Error; err == nil {
 				utils.ErrorResponse(c, http.StatusBadRequest, "Anda masih memiliki langganan aktif dengan paket berbeda. Selesaikan langganan saat ini sebelum berlangganan baru.")

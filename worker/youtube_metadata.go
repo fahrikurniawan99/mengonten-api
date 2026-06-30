@@ -7,11 +7,12 @@ import (
 )
 
 type YouTubeMetadata struct {
-	Title     string   `json:"title"`
-	Duration  float64  `json:"duration"`
-	Thumbnail string   `json:"thumbnail"`
-	Tags      []string `json:"tags"`
-	IsLive    bool     `json:"is_live"`
+	Title      string   `json:"title"`
+	Duration   float64  `json:"duration"`
+	Thumbnail  string   `json:"thumbnail"`
+	Tags       []string `json:"tags"`
+	Categories []string `json:"categories"`
+	IsLive     bool     `json:"is_live"`
 }
 
 func ExtractYouTubeMetadata(youtubeURL string) (*YouTubeMetadata, error) {
@@ -22,21 +23,23 @@ func ExtractYouTubeMetadata(youtubeURL string) (*YouTubeMetadata, error) {
 	}
 
 	var raw struct {
-		Title     string   `json:"title"`
-		Duration  float64  `json:"duration"`
-		Thumbnail string   `json:"thumbnail"`
-		Tags      []string `json:"tags"`
-		IsLive    bool     `json:"is_live"`
+		Title      string   `json:"title"`
+		Duration   float64  `json:"duration"`
+		Thumbnail  string   `json:"thumbnail"`
+		Tags       []string `json:"tags"`
+		Categories []string `json:"categories"`
+		IsLive     bool     `json:"is_live"`
 	}
 	if err := json.Unmarshal(output, &raw); err != nil {
 		return nil, fmt.Errorf("failed to parse metadata: %w", err)
 	}
 
 	return &YouTubeMetadata{
-		Title:     raw.Title,
-		Duration:  raw.Duration,
-		Thumbnail: raw.Thumbnail,
-		Tags:      raw.Tags,
-		IsLive:    raw.IsLive,
+		Title:      raw.Title,
+		Duration:   raw.Duration,
+		Thumbnail:  raw.Thumbnail,
+		Tags:       raw.Tags,
+		Categories: raw.Categories,
+		IsLive:     raw.IsLive,
 	}, nil
 }

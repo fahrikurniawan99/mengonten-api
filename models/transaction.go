@@ -29,17 +29,18 @@ func (Transaction) TableName() string {
 }
 
 type Order struct {
-	ID                uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID            uuid.UUID  `gorm:"type:uuid;not null;index" json:"user_id"`
-	TransactionID     uuid.UUID  `gorm:"type:uuid;not null;index" json:"transaction_id"`
-	PlanID            uuid.UUID  `gorm:"type:uuid;not null" json:"plan_id"`
-	ProductName       string     `gorm:"not null" json:"product_name"`
-	ProductPrice      float64    `gorm:"not null" json:"product_price"`
-	Status            string     `gorm:"default:'pending';not null" json:"status"`
-	ExpiredAt         time.Time  `json:"expired_at"`
+	ID                uuid.UUID   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID            uuid.UUID   `gorm:"type:uuid;not null;index" json:"user_id"`
+	TransactionID     uuid.UUID   `gorm:"type:uuid;not null;index" json:"transaction_id"`
+	PlanID            uuid.UUID   `gorm:"type:uuid;not null" json:"plan_id"`
+	ProductName       string      `gorm:"not null" json:"product_name"`
+	ProductPrice      float64     `gorm:"not null" json:"product_price"`
+	Status            string      `gorm:"default:'pending';not null" json:"status"`
+	DurationDays      int         `gorm:"not null;default:0" json:"duration_days"`
+	ExpiredAt         time.Time   `json:"expired_at"`
 	LastReminderSentAt *time.Time `json:"-"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	CreatedAt         time.Time   `json:"created_at"`
+	UpdatedAt         time.Time   `json:"updated_at"`
 	Rules             []OrderRule `gorm:"foreignKey:OrderID" json:"-"`
 }
 
@@ -51,6 +52,7 @@ func (o *Order) BeforeCreate(tx *gorm.DB) (err error) {
 	if o.ExpiredAt.IsZero() {
 		var plan SubscriptionPlan
 		if err := tx.First(&plan, o.PlanID).Error; err == nil {
+			o.DurationDays = plan.DurationDays
 			if plan.DurationDays <= 0 {
 				o.ExpiredAt = time.Now().AddDate(100, 0, 0)
 			} else {

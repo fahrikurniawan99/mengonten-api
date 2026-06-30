@@ -482,14 +482,6 @@ func formattedPlanName(name string, durationDays int) string {
 	return fmt.Sprintf("%s (%d hari)", name, durationDays)
 }
 
-func isLifetimePlan(db *gorm.DB, planID uuid.UUID) bool {
-	var plan models.SubscriptionPlan
-	if err := db.First(&plan, planID).Error; err != nil {
-		return false
-	}
-	return plan.DurationDays <= 0
-}
-
 func mapOrderResponse(order models.Order, db *gorm.DB) map[string]interface{} {
 	res := map[string]interface{}{
 		"id":              order.ID,
@@ -499,12 +491,12 @@ func mapOrderResponse(order models.Order, db *gorm.DB) map[string]interface{} {
 		"product_name":    order.ProductName,
 		"product_price":   order.ProductPrice,
 		"status":          order.Status,
+		"duration_days":   order.DurationDays,
 		"created_at":      order.CreatedAt,
 		"updated_at":      order.UpdatedAt,
 	}
 
-	lifetime := isLifetimePlan(db, order.PlanID)
-	if lifetime {
+	if order.DurationDays <= 0 {
 		res["expired_at"] = nil
 		res["is_lifetime"] = true
 	} else {

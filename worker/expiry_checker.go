@@ -32,9 +32,8 @@ func RunExpiryCheck(db *gorm.DB, es *EmailSender) {
 
 func expireOrders(db *gorm.DB) int64 {
 	result := db.Model(&models.Order{}).
-		Joins("JOIN subscription_plans ON subscription_plans.id = orders.plan_id").
-		Where("orders.status = 'active' AND orders.expired_at < NOW() AND subscription_plans.duration_days > 0").
-		Update("orders.status", "expired")
+		Where("status = 'active' AND expired_at < NOW() AND duration_days > 0").
+		Update("status", "expired")
 	return result.RowsAffected
 }
 
@@ -109,10 +108,8 @@ func sendReminders(db *gorm.DB, es *EmailSender) int {
 	}
 
 	var orders []models.Order
-	db.Model(&models.Order{}).
-		Joins("JOIN subscription_plans ON subscription_plans.id = orders.plan_id").
-		Where("orders.status = 'active' AND subscription_plans.duration_days > 0").
-		Where("orders.expired_at BETWEEN NOW() AND NOW() + INTERVAL '7 days'").
+	db.Where("status = 'active' AND duration_days > 0").
+		Where("expired_at BETWEEN NOW() AND NOW() + INTERVAL '7 days'").
 		Find(&orders)
 
 	count := 0

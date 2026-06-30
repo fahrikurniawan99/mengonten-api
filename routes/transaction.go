@@ -80,7 +80,7 @@ func CreateTransaction(db *gorm.DB, pakasirClient *worker.PakasirClient, emailSe
 			UserID:             userID.(uuid.UUID),
 			SubscriptionPlanID: plan.ID,
 			ReferenceID:        referenceID,
-			ProductName:        fmt.Sprintf("%s (%d hari)", plan.Name, plan.DurationDays),
+			ProductName:        formattedPlanName(plan.Name, plan.DurationDays),
 			PaymentTotal:       plan.FinalPrice,
 			PaymentMethod:      req.PaymentMethod,
 			Status:             "pending",
@@ -225,7 +225,6 @@ func CallbackPakasir(db *gorm.DB, pakasirClient *worker.PakasirClient) gin.Handl
 				ProductName:   plan.Name,
 				ProductPrice:  plan.FinalPrice,
 				Status:        "active",
-				ExpiredAt:     time.Now().AddDate(0, 0, plan.DurationDays),
 			}
 
 			if err := db.Create(&order).Error; err != nil {
@@ -331,7 +330,7 @@ func GetTransactionDetail(db *gorm.DB) gin.HandlerFunc {
 		if transaction.OrderID != nil {
 			var order models.Order
 			if err := db.Preload("Rules").First(&order, *transaction.OrderID).Error; err == nil {
-				data["order"] = order
+				data["order"] = mapOrderResponse(order, db)
 			}
 		}
 
@@ -445,7 +444,6 @@ func UpdateTransactionStatus(db *gorm.DB) gin.HandlerFunc {
 				ProductName:   plan.Name,
 				ProductPrice:  plan.FinalPrice,
 				Status:        "active",
-				ExpiredAt:     time.Now().AddDate(0, 0, plan.DurationDays),
 			}
 
 			if err := db.Create(&order).Error; err != nil {
@@ -475,4 +473,44 @@ func UpdateTransactionStatus(db *gorm.DB) gin.HandlerFunc {
 
 		utils.SuccessResponse(c, http.StatusOK, "Transaction updated", transaction)
 	}
+}
+
+func formattedPlanName(name string, durationDays int) string {
+	if durationDays <= 0 {
+		return name
+	}
+	return fmt.Sprintf("%s (%d hari)", name, durationDays)
+}
+
+func isLifetimePlan(db *gorm.DB, planID uuid.UUID) bool {
+	var plan models.SubscriptionPlan
+	if err := db.First(&plan, planID).Error; err != nil {
+		return false
+	}
+	return plan.DurationDays <= 0
+}
+
+func mapOrderResponse(order models.Order, db *gorm.DB) map[string]interface{} {
+	res := map[string]interface{}{
+		"id":              order.ID,
+		"user_id":         order.UserID,
+		"transaction_id":  order.TransactionID,
+		"plan_id":         order.PlanID,
+		"product_name":    order.ProductName,
+		"product_price":   order.ProductPrice,
+		"status":          order.Status,
+		"created_at":      order.CreatedAt,
+		"updated_at":      order.UpdatedAt,
+	}
+
+	lifetime := isLifetimePlan(db, order.PlanID)
+	if lifetime {
+		res["expired_at"] = nil
+		res["is_lifetime"] = true
+	} else {
+		res["expired_at"] = order.ExpiredAt
+		res["is_lifetime"] = false
+	}
+
+	return res
 }

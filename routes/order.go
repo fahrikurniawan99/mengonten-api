@@ -39,7 +39,12 @@ func GetMyOrders(db *gorm.DB) gin.HandlerFunc {
 			}
 		}
 
-		utils.SuccessResponse(c, http.StatusOK, "Orders retrieved", orders)
+		var orderList []map[string]interface{}
+		for _, o := range orders {
+			orderList = append(orderList, mapOrderResponse(o, db))
+		}
+
+		utils.SuccessResponse(c, http.StatusOK, "Orders retrieved", orderList)
 	}
 }
 
@@ -93,7 +98,7 @@ func CheckActiveSubscription(db *gorm.DB) gin.HandlerFunc {
 
 		utils.SuccessResponse(c, http.StatusOK, "Active subscription found", map[string]interface{}{
 			"has_active":   true,
-			"subscription": order,
+			"subscription": mapOrderResponse(order, db),
 			"rules":        rules,
 			"usage": map[string]interface{}{
 				"storage_limit_mb":   storageLimitMB,

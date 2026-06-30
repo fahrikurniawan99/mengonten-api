@@ -51,7 +51,11 @@ func (o *Order) BeforeCreate(tx *gorm.DB) (err error) {
 	if o.ExpiredAt.IsZero() {
 		var plan SubscriptionPlan
 		if err := tx.First(&plan, o.PlanID).Error; err == nil {
-			o.ExpiredAt = time.Now().AddDate(0, 0, plan.DurationDays)
+			if plan.DurationDays <= 0 {
+				o.ExpiredAt = time.Now().AddDate(100, 0, 0)
+			} else {
+				o.ExpiredAt = time.Now().AddDate(0, 0, plan.DurationDays)
+			}
 		}
 	}
 	return

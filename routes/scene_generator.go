@@ -255,10 +255,9 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	db.Model(&job).Update("progress", 40)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	transcript, err := transcriptGen.GenerateTranscript(ctx, audioPath)
+	txnCtx, txnCancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	transcript, err := transcriptGen.GenerateTranscript(txnCtx, audioPath)
+	txnCancel()
 	if err != nil {
 		log.Printf("[SceneJob] Transcription failed: %v", err)
 		db.Model(&job).Updates(map[string]interface{}{
@@ -270,7 +269,9 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	db.Model(&job).Updates(map[string]interface{}{"transcript": transcript, "progress": 60})
 
-	chapters, err := segmenter.SegmentChapters(ctx, transcript)
+	groqCtx, groqCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	chapters, err := segmenter.SegmentChapters(groqCtx, transcript)
+	groqCancel()
 	if err != nil {
 		log.Printf("[SceneJob] Segmentation failed: %v", err)
 		db.Model(&job).Updates(map[string]interface{}{

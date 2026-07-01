@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -117,6 +118,93 @@ func GetSceneJob(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
+// @Summary List scene jobs (user)
+// @Description List semua scene jobs milik user dengan pagination
+// @Tags Scene
+// @Produce json
+// @Security Bearer
+// @Param page query int false "Page number (default 1)"
+// @Param limit query int false "Items per page (default 20)"
+// @Param status query string false "Filter by status (pending/processing/completed/failed)"
+// @Success 200 {object} utils.Response "Jobs list"
+// @Router /api/youtube/scenes [get]
+func ListSceneJobs(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			utils.ErrorResponse(c, http.StatusUnauthorized, "User not authenticated")
+			return
+		}
+
+		page := 1
+		if p := c.Query("page"); p != "" {
+			if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+				page = parsed
+			}
+		}
+
+		limit := 20
+		if l := c.Query("limit"); l != "" {
+			if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+				limit = parsed
+			}
+		}
+
+		offset := (page - 1) * limit
+		status := c.Query("status")
+
+		var jobs []models.SceneJob
+		query := db.Where("user_id = ?", userID)
+
+		if status != "" {
+			query = query.Where("status = ?", status)
+		}
+
+		var total int64
+		query.Model(&models.SceneJob{}).Count(&total)
+
+		if err := query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&jobs).Error; err != nil {
+			utils.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch jobs")
+			return
+		}
+
+		data := make([]gin.H, 0)
+		for _, job := range jobs {
+			chaptersCount := 0
+			if len(job.Chapters) > 0 {
+				var chapters []worker.ChapterData
+				if err := json.Unmarshal(job.Chapters, &chapters); err == nil {
+					chaptersCount = len(chapters)
+				}
+			}
+
+			data = append(data, gin.H{
+				"id":              job.ID,
+				"youtube_url":     job.YouTubeURL,
+				"title":           job.Title,
+				"duration":        job.Duration,
+				"thumbnail":       job.Thumbnail,
+				"tags":            job.Tags,
+				"categories":      job.Categories,
+				"is_live":         job.IsLive,
+				"status":          job.Status,
+				"progress":        job.Progress,
+				"chapters_count":  chaptersCount,
+				"created_at":      job.CreatedAt,
+			})
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "success",
+			"message": "Jobs retrieved",
+			"page":    page,
+			"limit":   limit,
+			"total":   total,
+			"data":    data,
+		})
+	}
+}
+
 func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegmenter, transcriptGen *worker.TranscriptGenerator) {
 	log.Printf("[SceneJob] Starting processing for job %s", jobID.String())
 
@@ -127,6 +215,20 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 	}
 
 	db.Model(&job).Updates(map[string]interface{}{"status": "processing", "progress": 10})
+
+	metadata, err := worker.ExtractYouTubeMetadata(job.YouTubeURL)
+	if err == nil {
+		db.Model(&job).Updates(map[string]interface{}{
+			"title":      metadata.Title,
+			"duration":   metadata.Duration,
+			"thumbnail":  metadata.Thumbnail,
+			"tags":       metadata.Tags,
+			"categories": metadata.Categories,
+			"is_live":    metadata.IsLive,
+		})
+	}
+
+	db.Model(&job).Update("progress", 20)
 
 	downloader := worker.NewYouTubeDownloader("/tmp/yt-scenes")
 	audioPath := "/tmp/yt-scenes/audio.mp3"
@@ -140,7 +242,7 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 		return
 	}
 
-	db.Model(&job).Update("progress", 30)
+	db.Model(&job).Update("progress", 40)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

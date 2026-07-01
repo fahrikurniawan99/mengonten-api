@@ -50,7 +50,24 @@ func (tg *TranscriptGenerator) GenerateTranscript(ctx context.Context, videoPath
 		log.Printf("File is already audio format, skipping extraction: %s", videoPath)
 	}
 
-	log.Printf("Generating transcript using Whisper API")
+	// Check file size and compress if > 25MB (Whisper limit)
+	fileInfo, err := os.Stat(audioPath)
+	if err == nil && fileInfo.Size() > 25*1024*1024 {
+		log.Printf("Audio file size %d bytes exceeds Whisper limit, compressing...", fileInfo.Size())
+		compressedPath := filepath.Join(tg.TempDir, "audio_compressed.mp3")
+		if err := tg.compressAudio(audioPath, compressedPath); err != nil {
+			log.Printf("Compression failed, proceeding with original: %v", err)
+		} else {
+			if !audioFormats[ext] {
+				// If we extracted audio, defer removal of both extracted and original
+				defer os.Remove(audioPath)
+			}
+			audioPath = compressedPath
+			defer os.Remove(compressedPath)
+			fileInfo, _ = os.Stat(audioPath)
+			log.Printf("Compressed audio size: %d bytes", fileInfo.Size())
+		}
+	}
 
 	audioFile, err := os.Open(audioPath)
 	if err != nil {
@@ -86,6 +103,26 @@ func (tg *TranscriptGenerator) extractAudio(videoPath, audioPath string) error {
 
 	if _, err := os.Stat(audioPath); err != nil {
 		return fmt.Errorf("audio file not created: %v", err)
+	}
+
+	return nil
+}
+
+func (tg *TranscriptGenerator) compressAudio(inputPath, outputPath string) error {
+	log.Printf("Compressing audio: %s -> %s", inputPath, outputPath)
+
+	cmd := exec.Command("ffmpeg",
+		"-i", inputPath,
+		"-b:a", "64k",
+		"-y",
+		outputPath)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("compression failed: %v", err)
+	}
+
+	if _, err := os.Stat(outputPath); err != nil {
+		return fmt.Errorf("compressed file not created: %v", err)
 	}
 
 	return nil

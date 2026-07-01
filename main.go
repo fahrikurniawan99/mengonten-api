@@ -64,6 +64,25 @@ func main() {
 		created_at TIMESTAMP
 	)`)
 
+	db.Exec(`CREATE TABLE IF NOT EXISTS scene_jobs (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id UUID NOT NULL,
+		youtube_url VARCHAR(2048) NOT NULL,
+		title VARCHAR(1024),
+		duration DOUBLE PRECISION,
+		thumbnail VARCHAR(2048),
+		tags TEXT[],
+		categories TEXT[],
+		is_live BOOLEAN,
+		status VARCHAR(50) NOT NULL DEFAULT 'pending',
+		progress INT DEFAULT 0,
+		transcript TEXT,
+		chapters JSONB,
+		error TEXT,
+		created_at TIMESTAMP,
+		updated_at TIMESTAMP
+	)`)
+
 	db.Migrator().DropTable("user_subscriptions")
 	db.Migrator().DropTable("transaction_previews")
 	db.Migrator().DropTable("payment_proof_photos")

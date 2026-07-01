@@ -9,7 +9,7 @@ import (
 type SceneJob struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID     uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
-	YouTubeURL string    `gorm:"not null" json:"youtube_url"`
+	YouTubeURL string    `gorm:"column:youtube_url;not null" json:"youtube_url"`
 	Title      string    `json:"title"`
 	Duration   float64   `json:"duration"`
 	Thumbnail  string    `json:"thumbnail"`

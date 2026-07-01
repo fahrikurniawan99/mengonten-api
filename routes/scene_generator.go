@@ -178,14 +178,23 @@ func ListSceneJobs(db *gorm.DB) gin.HandlerFunc {
 				}
 			}
 
+			var tags []string
+			var categories []string
+			if len(job.Tags) > 0 {
+				json.Unmarshal(job.Tags, &tags)
+			}
+			if len(job.Categories) > 0 {
+				json.Unmarshal(job.Categories, &categories)
+			}
+
 			data = append(data, gin.H{
 				"id":              job.ID,
 				"youtube_url":     job.YouTubeURL,
 				"title":           job.Title,
 				"duration":        job.Duration,
 				"thumbnail":       job.Thumbnail,
-				"tags":            job.Tags,
-				"categories":      job.Categories,
+				"tags":            tags,
+				"categories":      categories,
 				"is_live":         job.IsLive,
 				"status":          job.Status,
 				"progress":        job.Progress,

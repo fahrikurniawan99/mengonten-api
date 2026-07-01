@@ -218,12 +218,14 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	metadata, err := worker.ExtractYouTubeMetadata(job.YouTubeURL)
 	if err == nil {
+		tagsJSON, _ := json.Marshal(metadata.Tags)
+		categoriesJSON, _ := json.Marshal(metadata.Categories)
 		db.Model(&job).Updates(map[string]interface{}{
 			"title":      metadata.Title,
 			"duration":   metadata.Duration,
 			"thumbnail":  metadata.Thumbnail,
-			"tags":       metadata.Tags,
-			"categories": metadata.Categories,
+			"tags":       tagsJSON,
+			"categories": categoriesJSON,
 			"is_live":    metadata.IsLive,
 		})
 	}

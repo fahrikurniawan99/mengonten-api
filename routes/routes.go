@@ -10,7 +10,7 @@ import (
 	"mengonten-api/worker"
 )
 
-func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender, pakasirClient *worker.PakasirClient) {
+func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTubeProcessor, emailSender *worker.EmailSender, pakasirClient *worker.PakasirClient, chapterSegmenter *worker.ChapterSegmenter, transcriptGen *worker.TranscriptGenerator) {
 	r.GET("/health", func(c *gin.Context) {
 		sqlDB, err := db.DB()
 		if err != nil {
@@ -46,6 +46,8 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, youtubeProcessor *worker.YouTube
 		user.GET("/profile", GetProfile(db))
 		user.GET("/youtube", GetMyVideos(db))
 		user.GET("/youtube/metadata", GetYouTubeMetadata(db))
+		user.POST("/youtube/scenes", CreateSceneJob(db, chapterSegmenter, transcriptGen))
+		user.GET("/youtube/scenes/:job_id", GetSceneJob(db))
 		user.POST("/youtube/submit", middleware.RequireActiveSubscription(db), SubmitYouTubeVideo(db, youtubeProcessor))
 		user.GET("/youtube/:video_id", GetYouTubeVideo(db))
 		user.GET("/youtube/jobs/:job_id", GetProcessingJobStatus(db))

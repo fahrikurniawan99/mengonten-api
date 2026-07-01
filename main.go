@@ -40,7 +40,7 @@ func main() {
 		log.Fatal("Failed to connect to database")
 	}
 
-	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.Order{}, &models.OrderRule{})
+	db.AutoMigrate(&models.User{}, &models.YouTubeVideo{}, &models.VideoTranscript{}, &models.VideoSegment{}, &models.ProcessingJob{}, &models.BankAccount{}, &models.SubscriptionPlan{}, &models.SubscriptionRule{}, &models.Transaction{}, &models.Order{}, &models.OrderRule{}, &models.SceneJob{})
 
 	db.Exec(`CREATE TABLE IF NOT EXISTS orders (
 		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -106,6 +106,10 @@ func main() {
 	pakasirConfig := config.InitPakasir()
 	pakasirClient := worker.NewPakasirClient(pakasirConfig)
 
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	chapterSegmenter := worker.NewChapterSegmenter(groqAPIKey)
+	transcriptGen := worker.NewTranscriptGenerator(externalAPIs.WhisperAPIKey, "/tmp/transcripts")
+
 	ginMode := os.Getenv("GIN_MODE")
 	gin.SetMode(ginMode)
 	r := gin.Default()
@@ -133,7 +137,7 @@ func main() {
 		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	}
 
-	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender, pakasirClient)
+	routes.RegisterRoutes(r, db, youtubeProcessor, emailSender, pakasirClient, chapterSegmenter, transcriptGen)
 
 	port := os.Getenv("PORT")
 	if port == "" {

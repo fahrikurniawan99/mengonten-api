@@ -116,6 +116,11 @@ func main() {
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS duration DOUBLE PRECISION DEFAULT 0")
 	db.Exec("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0")
 
+	db.Exec("ALTER TABLE scene_jobs DROP COLUMN IF EXISTS tags")
+	db.Exec("ALTER TABLE scene_jobs DROP COLUMN IF EXISTS categories")
+	db.Exec("ALTER TABLE scene_jobs ADD COLUMN IF NOT EXISTS tags JSONB")
+	db.Exec("ALTER TABLE scene_jobs ADD COLUMN IF NOT EXISTS categories JSONB")
+
 	externalAPIs := config.InitExternalAPIs()
 	youtubeProcessor := worker.NewYouTubeProcessor(externalAPIs)
 

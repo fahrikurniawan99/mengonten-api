@@ -23,6 +23,7 @@ func (yd *YouTubeDownloader) Download(youtubeURL, outputPath string) error {
 	log.Printf("Downloading video from: %s", youtubeURL)
 
 	cmd := exec.Command("yt-dlp",
+		"--cookies", "/app/cookies.txt",
 		"--extractor-args", "youtube:player_client=android,web",
 		"-o", outputPath,
 		youtubeURL)

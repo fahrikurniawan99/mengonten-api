@@ -13,8 +13,8 @@ type SceneJob struct {
 	Title      string    `json:"title"`
 	Duration   float64   `json:"duration"`
 	Thumbnail  string    `json:"thumbnail"`
-	Tags       []string  `gorm:"type:text[]" json:"tags"`
-	Categories []string  `gorm:"type:text[]" json:"categories"`
+	Tags       []byte    `gorm:"type:jsonb" json:"tags"`
+	Categories []byte    `gorm:"type:jsonb" json:"categories"`
 	IsLive     bool      `json:"is_live"`
 	Status     string    `gorm:"default:'pending';not null" json:"status"`
 	Progress   int       `gorm:"default:0" json:"progress"`

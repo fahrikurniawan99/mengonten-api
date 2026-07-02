@@ -133,3 +133,84 @@ func (tg *TranscriptGenerator) compressAudio(inputPath, outputPath string) error
 
 	return nil
 }
+
+func (tg *TranscriptGenerator) chunkAudio(audioPath string, chunkDurationSeconds int) ([]string, error) {
+	log.Printf("Chunking audio into %d second chunks: %s", chunkDurationSeconds, audioPath)
+
+	chunksDir := filepath.Join(tg.TempDir, "chunks")
+	if err := os.MkdirAll(chunksDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create chunks directory: %v", err)
+	}
+
+	chunkPattern := filepath.Join(chunksDir, "chunk_%03d.mp3")
+	cmd := exec.Command("ffmpeg",
+		"-i", audioPath,
+		"-f", "segment",
+		"-segment_time", fmt.Sprintf("%d", chunkDurationSeconds),
+		"-c", "copy",
+		"-y",
+		chunkPattern)
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("chunking failed: %v", err)
+	}
+
+	var chunks []string
+	for i := 0; ; i++ {
+		chunkPath := filepath.Join(chunksDir, fmt.Sprintf("chunk_%03d.mp3", i))
+		if _, err := os.Stat(chunkPath); err != nil {
+			break
+		}
+		chunks = append(chunks, chunkPath)
+	}
+
+	log.Printf("Created %d audio chunks", len(chunks))
+	return chunks, nil
+}
+
+func (tg *TranscriptGenerator) GenerateTranscriptChunked(ctx context.Context, audioPath string) (string, error) {
+	log.Printf("Starting chunked transcription for: %s", audioPath)
+
+	chunks, err := tg.chunkAudio(audioPath, 300)
+	if err != nil {
+		log.Printf("Chunking failed, falling back to full transcription: %v", err)
+		return tg.GenerateTranscript(ctx, audioPath)
+	}
+
+	var fullTranscript strings.Builder
+
+	for i, chunkPath := range chunks {
+		log.Printf("Transcribing chunk %d of %d", i+1, len(chunks))
+
+		audioFile, err := os.Open(chunkPath)
+		if err != nil {
+			log.Printf("Failed to open chunk: %v", err)
+			continue
+		}
+		audioFile.Close()
+
+		req := openai.AudioRequest{
+			Model:    openai.Whisper1,
+			FilePath: chunkPath,
+		}
+
+		resp, err := tg.Client.CreateTranscription(context.Background(), req)
+		if err != nil {
+			log.Printf("Whisper transcription failed for chunk %d: %v", i, err)
+			continue
+		}
+
+		if fullTranscript.Len() > 0 {
+			fullTranscript.WriteString(" ")
+		}
+		fullTranscript.WriteString(resp.Text)
+	}
+
+	chunksDir := filepath.Join(tg.TempDir, "chunks")
+	os.RemoveAll(chunksDir)
+
+	transcript := fullTranscript.String()
+	log.Printf("Chunked transcription completed. Total length: %d characters", len(transcript))
+
+	return transcript, nil
+}

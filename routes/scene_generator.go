@@ -256,7 +256,7 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 	db.Model(&job).Update("progress", 40)
 
 	txnCtx, txnCancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	transcript, err := transcriptGen.GenerateTranscript(txnCtx, audioPath)
+	transcript, err := transcriptGen.GenerateTranscriptChunked(txnCtx, audioPath)
 	txnCancel()
 	if err != nil {
 		log.Printf("[SceneJob] Transcription failed: %v", err)

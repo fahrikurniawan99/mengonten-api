@@ -169,48 +169,40 @@ func (tg *TranscriptGenerator) chunkAudio(audioPath string, chunkDurationSeconds
 }
 
 func (tg *TranscriptGenerator) GenerateTranscriptChunked(ctx context.Context, audioPath string) (string, error) {
-	log.Printf("Starting chunked transcription for: %s", audioPath)
+	log.Printf("Starting transcription for: %s", audioPath)
 
-	chunks, err := tg.chunkAudio(audioPath, 300)
+	fileInfo, err := os.Stat(audioPath)
 	if err != nil {
-		log.Printf("Chunking failed, falling back to full transcription: %v", err)
 		return tg.GenerateTranscript(ctx, audioPath)
 	}
 
-	var fullTranscript strings.Builder
-
-	for i, chunkPath := range chunks {
-		log.Printf("Transcribing chunk %d of %d", i+1, len(chunks))
-
-		audioFile, err := os.Open(chunkPath)
-		if err != nil {
-			log.Printf("Failed to open chunk: %v", err)
-			continue
+	if fileInfo.Size() > 25*1024*1024 {
+		log.Printf("File > 25MB, compressing before transcription")
+		compressedPath := filepath.Join(tg.TempDir, "audio_compressed_32k.mp3")
+		if err := tg.compressAudio(audioPath, compressedPath); err != nil {
+			log.Printf("Compression failed, attempting full transcription: %v", err)
+			return tg.GenerateTranscript(ctx, audioPath)
 		}
-		audioFile.Close()
-
-		req := openai.AudioRequest{
-			Model:    openai.Whisper1,
-			FilePath: chunkPath,
-		}
-
-		resp, err := tg.Client.CreateTranscription(context.Background(), req)
-		if err != nil {
-			log.Printf("Whisper transcription failed for chunk %d: %v", i, err)
-			continue
-		}
-
-		if fullTranscript.Len() > 0 {
-			fullTranscript.WriteString(" ")
-		}
-		fullTranscript.WriteString(resp.Text)
+		defer os.Remove(compressedPath)
+		return tg.GenerateTranscript(ctx, compressedPath)
 	}
 
-	chunksDir := filepath.Join(tg.TempDir, "chunks")
-	os.RemoveAll(chunksDir)
+	audioFile, err := os.Open(audioPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open audio file: %v", err)
+	}
+	defer audioFile.Close()
 
-	transcript := fullTranscript.String()
-	log.Printf("Chunked transcription completed. Total length: %d characters", len(transcript))
+	req := openai.AudioRequest{
+		Model:    openai.Whisper1,
+		FilePath: audioPath,
+	}
 
-	return transcript, nil
+	resp, err := tg.Client.CreateTranscription(context.Background(), req)
+	if err != nil {
+		return "", fmt.Errorf("whisper API error: %v", err)
+	}
+
+	log.Printf("Transcription completed. Length: %d characters", len(resp.Text))
+	return resp.Text, nil
 }

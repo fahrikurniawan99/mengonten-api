@@ -1,12 +1,13 @@
 package routes
 
 import (
+	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"mengonten-api/models"
 	"mengonten-api/utils"
@@ -188,18 +189,18 @@ func ListSceneJobs(db *gorm.DB) gin.HandlerFunc {
 			}
 
 			data = append(data, gin.H{
-				"id":              job.ID,
-				"youtube_url":     job.YouTubeURL,
-				"title":           job.Title,
-				"duration":        job.Duration,
-				"thumbnail":       job.Thumbnail,
-				"tags":            tags,
-				"categories":      categories,
-				"is_live":         job.IsLive,
-				"status":          job.Status,
-				"progress":        job.Progress,
-				"chapters_count":  chaptersCount,
-				"created_at":      job.CreatedAt,
+				"id":             job.ID,
+				"youtube_url":    job.YouTubeURL,
+				"title":          job.Title,
+				"duration":       job.Duration,
+				"thumbnail":      job.Thumbnail,
+				"tags":           tags,
+				"categories":     categories,
+				"is_live":        job.IsLive,
+				"status":         job.Status,
+				"progress":       job.Progress,
+				"chapters_count": chaptersCount,
+				"created_at":     job.CreatedAt,
 			})
 		}
 
@@ -264,19 +265,21 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	db.Model(&job).Update("progress", 40)
 
-	fmt.Println("Starting transcription...")
+	log.Printf("[SceneJob] Downloaded audio to: %s", audioPath)
 
-	// txnCtx, txnCancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	// transcript, err := transcriptGen.GenerateTranscriptChunked(txnCtx, audioPath)
-	// txnCancel()
-	// if err != nil {
-	// 	log.Printf("[SceneJob] Transcription failed: %v", err)
-	// 	db.Model(&job).Updates(map[string]interface{}{
-	// 		"status": "failed",
-	// 		"error":  "Transcription failed: " + err.Error(),
-	// 	})
-	// 	return
-	// }
+	txnCtx, txnCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	transcript, err := transcriptGen.GenerateTranscriptChunked(txnCtx, audioPath)
+	txnCancel()
+	if err != nil {
+		log.Printf("[SceneJob] Transcription failed: %v", err)
+		db.Model(&job).Updates(map[string]interface{}{
+			"status": "failed",
+			"error":  "Transcription failed: " + err.Error(),
+		})
+		return
+	}
+
+	log.Printf("[SceneJob] Transcription completed, length: %d characters", len(transcript))
 
 	// db.Model(&job).Updates(map[string]interface{}{"transcript": transcript, "progress": 60})
 

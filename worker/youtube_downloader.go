@@ -2,10 +2,12 @@ package worker
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"time"
 )
 
 type YouTubeDownloader struct {
@@ -22,8 +24,12 @@ func NewYouTubeDownloader(outputDir string) *YouTubeDownloader {
 func (yd *YouTubeDownloader) Download(youtubeURL, outputPath string) error {
 	log.Printf("Downloading video from: %s", youtubeURL)
 
-	cmd := exec.Command("yt-dlp",
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "yt-dlp",
 		"--extractor-args", "youtube:player_client=android,web",
+		"--audio-format", "mp3",
 		"-o", outputPath,
 		youtubeURL)
 

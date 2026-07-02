@@ -168,6 +168,10 @@ func (tg *TranscriptGenerator) chunkAudio(audioPath string, chunkDurationSeconds
 	return chunks, nil
 }
 
+func (tg *TranscriptGenerator) SplitAudio(audioPath string) ([]string, error) {
+	return tg.chunkAudio(audioPath, 300) // 5 minutes = 300 seconds
+}
+
 func (tg *TranscriptGenerator) GenerateTranscriptChunked(ctx context.Context, audioPath string) (string, error) {
 	log.Printf("Starting transcription for: %s", audioPath)
 
@@ -176,33 +180,38 @@ func (tg *TranscriptGenerator) GenerateTranscriptChunked(ctx context.Context, au
 		return tg.GenerateTranscript(ctx, audioPath)
 	}
 
-	if fileInfo.Size() > 25*1024*1024 {
-		log.Printf("File > 25MB, compressing before transcription")
-		compressedPath := filepath.Join(tg.TempDir, "audio_compressed_32k.mp3")
-		if err := tg.compressAudio(audioPath, compressedPath); err != nil {
-			log.Printf("Compression failed, attempting full transcription: %v", err)
-			return tg.GenerateTranscript(ctx, audioPath)
+	if fileInfo.Size() <= 25*1024*1024 {
+		return tg.GenerateTranscript(ctx, audioPath)
+	}
+
+	chunks, err := tg.SplitAudio(audioPath)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		for _, chunk := range chunks {
+			os.Remove(chunk)
 		}
-		defer os.Remove(compressedPath)
-		return tg.GenerateTranscript(ctx, compressedPath)
+	}()
+
+	var transcripts []string
+
+	for i, chunk := range chunks {
+
+		text, err := tg.GenerateTranscript(ctx, chunk)
+		if err != nil {
+			return "", err
+		}
+
+		log.Printf(
+			"Transcribing chunk %d/%d",
+			i+1,
+			len(chunks),
+		)
+
+		transcripts = append(transcripts, text)
 	}
 
-	audioFile, err := os.Open(audioPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open audio file: %v", err)
-	}
-	defer audioFile.Close()
-
-	req := openai.AudioRequest{
-		Model:    openai.Whisper1,
-		FilePath: audioPath,
-	}
-
-	resp, err := tg.Client.CreateTranscription(context.Background(), req)
-	if err != nil {
-		return "", fmt.Errorf("whisper API error: %v", err)
-	}
-
-	log.Printf("Transcription completed. Length: %d characters", len(resp.Text))
-	return resp.Text, nil
+	return strings.Join(transcripts, "\n"), nil
 }

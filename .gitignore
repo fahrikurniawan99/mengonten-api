@@ -24,3 +24,6 @@ vendor/
 *.log
 
 uploads/
+
+
+cookies.txt

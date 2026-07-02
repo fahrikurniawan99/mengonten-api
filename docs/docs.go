@@ -45,9 +45,9 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Tambah rekening bank baru - admin only",
+                "description": "Tambah rekening bank baru + upload icon - admin only",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -58,13 +58,31 @@ const docTemplate = `{
                 "summary": "Create bank account (admin)",
                 "parameters": [
                     {
-                        "description": "Bank account data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.CreateBankAccountRequest"
-                        }
+                        "type": "string",
+                        "description": "Nama bank",
+                        "name": "bank_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nomor rekening",
+                        "name": "account_number",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Atas nama",
+                        "name": "account_name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Icon bank",
+                        "name": "icon",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -84,9 +102,9 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Update rekening bank - admin only",
+                "description": "Update rekening bank + ganti icon - admin only",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -104,13 +122,34 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Update data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.UpdateBankAccountRequest"
-                        }
+                        "type": "string",
+                        "description": "Nama bank",
+                        "name": "bank_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Nomor rekening",
+                        "name": "account_number",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Atas nama",
+                        "name": "account_name",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Icon bank (ganti)",
+                        "name": "icon",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Aktif/nonaktif (true/false)",
+                        "name": "is_active",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -128,7 +167,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Hapus rekening bank - admin only",
+                "description": "Hapus rekening bank + icon - admin only",
                 "produces": [
                     "application/json"
                 ],
@@ -148,168 +187,6 @@ const docTemplate = `{
                 "responses": {
                     "200": {
                         "description": "Bank account deleted",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/payment-proofs": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "List semua bukti transfer - admin only",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Payment Proof"
-                ],
-                "summary": "Get all payment proofs (admin)",
-                "responses": {
-                    "200": {
-                        "description": "Payment proofs list",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/payment-proofs/{proof_id}": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Detail bukti transfer - admin only",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Payment Proof"
-                ],
-                "summary": "Get payment proof detail (admin)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Payment Proof ID",
-                        "name": "proof_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Payment proof detail",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/payment-proofs/{proof_id}/confirm-overpaid": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Konfirmasi bukti transfer dengan nominal kelebihan + upload bukti refund",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Payment Proof"
-                ],
-                "summary": "Confirm overpaid payment proof (admin)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Payment Proof ID",
-                        "name": "proof_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Catatan admin",
-                        "name": "admin_notes",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "number",
-                        "description": "Jumlah refund",
-                        "name": "refund_amount",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "file",
-                        "description": "Bukti pengembalian dana",
-                        "name": "refund_proof",
-                        "in": "formData"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Overpaid confirmed",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/admin/payment-proofs/{proof_id}/review": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Konfirmasi atau tolak bukti transfer",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Admin Payment Proof"
-                ],
-                "summary": "Confirm or reject payment proof (admin)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Payment Proof ID",
-                        "name": "proof_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Review result",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.AdminReviewRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Review result",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -450,6 +327,45 @@ const docTemplate = `{
                 "responses": {
                     "201": {
                         "description": "Plan created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/subscription-plans/reorder": {
+            "put": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Ubah urutan plans - admin only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Subscription Plan"
+                ],
+                "summary": "Reorder subscription plans (admin)",
+                "parameters": [
+                    {
+                        "description": "Reorder data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.ReorderPlansRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Plans reordered",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -651,7 +567,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Update status transaksi - admin only. Jika paid, otomatis buat subscription",
+                "description": "Update status transaksi - admin only",
                 "consumes": [
                     "application/json"
                 ],
@@ -1066,7 +982,7 @@ const docTemplate = `{
         },
         "/api/auth/admin/login": {
             "post": {
-                "description": "Login khusus admin - hanya user dengan role admin",
+                "description": "Kirim kode OTP ke email admin untuk login",
                 "consumes": [
                     "application/json"
                 ],
@@ -1076,10 +992,10 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "Admin login",
+                "summary": "Admin login (send OTP)",
                 "parameters": [
                     {
-                        "description": "Admin credentials",
+                        "description": "Email",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1090,37 +1006,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Admin login successful",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/routes.AuthResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request format",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid email or password",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "403": {
-                        "description": "Access denied - admin only",
+                        "description": "OTP sent",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1130,7 +1016,7 @@ const docTemplate = `{
         },
         "/api/auth/login": {
             "post": {
-                "description": "Authenticate user with email and password, returns JWT token",
+                "description": "Kirim kode OTP ke email untuk login",
                 "consumes": [
                     "application/json"
                 ],
@@ -1140,10 +1026,10 @@ const docTemplate = `{
                 "tags": [
                     "Auth"
                 ],
-                "summary": "User login",
+                "summary": "User login (send OTP)",
                 "parameters": [
                     {
-                        "description": "Login credentials",
+                        "description": "Email",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1154,37 +1040,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Login successful",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/routes.AuthResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request format",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid email or password",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Server error",
+                        "description": "OTP sent",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1194,7 +1050,7 @@ const docTemplate = `{
         },
         "/api/auth/logout": {
             "post": {
-                "description": "Logout user (clears session)",
+                "description": "Logout user",
                 "tags": [
                     "Auth"
                 ],
@@ -1211,7 +1067,7 @@ const docTemplate = `{
         },
         "/api/auth/register": {
             "post": {
-                "description": "Create new user account with email, username, and password",
+                "description": "Daftar dengan email, kirim verifikasi email",
                 "consumes": [
                     "application/json"
                 ],
@@ -1224,7 +1080,7 @@ const docTemplate = `{
                 "summary": "Register new user",
                 "parameters": [
                     {
-                        "description": "Registration data",
+                        "description": "Email",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1235,37 +1091,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "User registered successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/routes.AuthResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request format",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "Email or username already exists",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "500": {
-                        "description": "Server error",
+                        "description": "Registration email sent",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1275,7 +1101,7 @@ const docTemplate = `{
         },
         "/api/auth/resend-verification": {
             "post": {
-                "description": "Kirim ulang email verifikasi (cooldown 5 menit)",
+                "description": "Kirim ulang email verifikasi",
                 "consumes": [
                     "application/json"
                 ],
@@ -1303,25 +1129,13 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "429": {
-                        "description": "Rate limited - cooldown active",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
                     }
                 }
             }
         },
         "/api/auth/verify-email": {
             "post": {
-                "description": "Verify user email dengan token dari email",
+                "description": "Verifikasi email dan auto-login",
                 "consumes": [
                     "application/json"
                 ],
@@ -1345,15 +1159,67 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Email verified successfully",
+                        "description": "Email verified",
                         "schema": {
-                            "$ref": "#/definitions/utils.Response"
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/routes.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
-                    },
-                    "400": {
-                        "description": "Invalid or expired token",
+                    }
+                }
+            }
+        },
+        "/api/auth/verify-otp": {
+            "post": {
+                "description": "Masukkan kode OTP untuk login",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify OTP",
+                "parameters": [
+                    {
+                        "description": "Email \u0026 OTP",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/utils.Response"
+                            "$ref": "#/definitions/routes.VerifyOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/utils.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/routes.AuthResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1379,6 +1245,56 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/orders": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua order/langganan milik user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "Get my orders (user)",
+                "responses": {
+                    "200": {
+                        "description": "My orders",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/orders/subscription": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Cek langganan aktif + rules + usage",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Order"
+                ],
+                "summary": "Check active subscription",
+                "responses": {
+                    "200": {
+                        "description": "Subscription status",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/api/profile": {
             "get": {
                 "security": [
@@ -1386,7 +1302,7 @@ const docTemplate = `{
                         "Bearer": []
                     }
                 ],
-                "description": "Retrieve authenticated user profile information",
+                "description": "Ambil profil user yang sedang login",
                 "produces": [
                     "application/json"
                 ],
@@ -1412,81 +1328,6 @@ const docTemplate = `{
                                 }
                             ]
                         }
-                    },
-                    "401": {
-                        "description": "User not authenticated",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "404": {
-                        "description": "User not found",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/profile/username": {
-            "put": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Update authenticated user's username",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Update username",
-                "parameters": [
-                    {
-                        "description": "New username",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.UpdateUsernameRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Username updated",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/utils.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/routes.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "409": {
-                        "description": "Username already taken",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
                     }
                 }
             }
@@ -1511,74 +1352,28 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/subscription/check": {
+        "/api/subscription-plans/{plan_id}": {
             "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Cek apakah user masih punya langganan aktif",
+                "description": "Detail subscription plan",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Subscription"
+                    "Subscription Plan"
                 ],
-                "summary": "Check active subscription",
-                "responses": {
-                    "200": {
-                        "description": "Subscription status",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/subscription/history": {
-            "get": {
-                "security": [
+                "summary": "Get subscription plan by ID (public)",
+                "parameters": [
                     {
-                        "Bearer": []
+                        "type": "string",
+                        "description": "Plan ID",
+                        "name": "plan_id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
-                "description": "History langganan yang sudah di-order user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Subscription"
-                ],
-                "summary": "Get subscription history",
                 "responses": {
                     "200": {
-                        "description": "Subscription history",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/subscription/rules": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Cek rules dan usage dari langganan aktif user",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Subscription Rule"
-                ],
-                "summary": "Get my active subscription rules",
-                "responses": {
-                    "200": {
-                        "description": "Active subscription rules + usage",
+                        "description": "Plan detail",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1609,16 +1404,14 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/api/transactions/confirm": {
+            },
             "post": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Konfirmasi preview → buat transaction",
+                "description": "Buat transaksi baru + redirect ke Duitku payment page",
                 "consumes": [
                     "application/json"
                 ],
@@ -1628,15 +1421,15 @@ const docTemplate = `{
                 "tags": [
                     "Transaction"
                 ],
-                "summary": "Confirm payment preview (user)",
+                "summary": "Create transaction (user)",
                 "parameters": [
                     {
-                        "description": "Preview reference_id",
+                        "description": "Plan ID",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/routes.ConfirmTransactionRequest"
+                            "$ref": "#/definitions/routes.CreateTransactionRequest"
                         }
                     }
                 ],
@@ -1650,94 +1443,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/transactions/preview": {
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Generate preview pembayaran dengan unique code (berlaku 15 menit)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Transaction"
-                ],
-                "summary": "Generate payment preview (user)",
-                "parameters": [
-                    {
-                        "description": "Preview data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/routes.PreviewTransactionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Payment preview",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/transactions/preview/{reference_id}": {
+        "/api/transactions/{transaction_id}": {
             "get": {
                 "security": [
                     {
                         "Bearer": []
                     }
                 ],
-                "description": "Cek apakah preview masih valid",
+                "description": "Lihat detail transaksi milik user sendiri",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Transaction"
                 ],
-                "summary": "Check preview status (user)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Preview Reference ID",
-                        "name": "reference_id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Preview status",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/transactions/{transaction_id}/payment-proof": {
-            "get": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Lihat bukti transfer milik user sendiri",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Payment Proof"
-                ],
-                "summary": "Get my payment proof (user)",
+                "summary": "Get transaction detail (user)",
                 "parameters": [
                     {
                         "type": "string",
@@ -1749,90 +1469,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Payment proof",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "Bearer": []
-                    }
-                ],
-                "description": "Upload foto bukti transfer (max 5) + info transfer",
-                "consumes": [
-                    "multipart/form-data"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Payment Proof"
-                ],
-                "summary": "Upload bukti transfer (user)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Transaction ID",
-                        "name": "transaction_id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Atas nama rekening",
-                        "name": "account_name",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Transfer dari bank",
-                        "name": "source_bank",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Nomor rekening pengirim",
-                        "name": "source_account_number",
-                        "in": "formData"
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "file"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Foto bukti transfer (max 5)",
-                        "name": "photos",
-                        "in": "formData",
-                        "required": true
-                    },
-                    {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "csv",
-                        "description": "Deskripsi per foto",
-                        "name": "descriptions",
-                        "in": "formData",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Payment proof uploaded",
-                        "schema": {
-                            "$ref": "#/definitions/utils.Response"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
+                        "description": "Transaction detail",
                         "schema": {
                             "$ref": "#/definitions/utils.Response"
                         }
@@ -1908,6 +1545,156 @@ const docTemplate = `{
                     "YouTube"
                 ],
                 "summary": "Get processing job status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Job ID",
+                        "name": "job_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job status",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/youtube/metadata": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Ambil title, duration, thumbnail, tags, is_live dari URL YouTube",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "YouTube"
+                ],
+                "summary": "Get YouTube video metadata",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "YouTube video URL",
+                        "name": "url",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Metadata retrieved",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/youtube/scenes": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "List semua scene jobs milik user dengan pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Scene"
+                ],
+                "summary": "List scene jobs (user)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (pending/processing/completed/failed)",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Jobs list",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Submit YouTube URL untuk di-analyze jadi chapters",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Scene"
+                ],
+                "summary": "Create chapter segmentation job",
+                "parameters": [
+                    {
+                        "description": "YouTube URL",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/routes.CreateSceneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Job created",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/youtube/scenes/{job_id}": {
+            "get": {
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ],
+                "description": "Get job status dan hasil chapters",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Scene"
+                ],
+                "summary": "Get scene job status",
                 "parameters": [
                     {
                         "type": "string",
@@ -2057,30 +1844,42 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/callback/pakasir": {
+            "post": {
+                "description": "Webhook dari Pakasir untuk update status transaksi",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Transaction"
+                ],
+                "summary": "Pakasir payment callback",
+                "parameters": [
+                    {
+                        "description": "Callback params",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Callback processed",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Response"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "routes.AdminReviewRequest": {
-            "type": "object",
-            "required": [
-                "status"
-            ],
-            "properties": {
-                "admin_notes": {
-                    "type": "string"
-                },
-                "refund_amount": {
-                    "type": "number"
-                },
-                "status": {
-                    "type": "string",
-                    "enum": [
-                        "confirmed",
-                        "rejected"
-                    ]
-                }
-            }
-        },
         "routes.AuthResponse": {
             "type": "object",
             "properties": {
@@ -2092,45 +1891,11 @@ const docTemplate = `{
                 }
             }
         },
-        "routes.ConfirmTransactionRequest": {
-            "type": "object",
-            "required": [
-                "reference_id"
-            ],
-            "properties": {
-                "reference_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "routes.CreateBankAccountRequest": {
-            "type": "object",
-            "required": [
-                "account_name",
-                "account_number",
-                "bank_name"
-            ],
-            "properties": {
-                "account_name": {
-                    "type": "string"
-                },
-                "account_number": {
-                    "type": "string"
-                },
-                "bank_name": {
-                    "type": "string"
-                },
-                "icon": {
-                    "type": "string"
-                }
-            }
-        },
         "routes.CreatePlanRequest": {
             "type": "object",
             "required": [
                 "benefits",
                 "duration_days",
-                "final_price",
                 "name",
                 "type"
             ],
@@ -2150,7 +1915,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "final_price": {
-                    "type": "number"
+                    "type": "number",
+                    "minimum": 0
+                },
+                "is_active": {
+                    "type": "boolean"
                 },
                 "name": {
                     "type": "string"
@@ -2181,29 +1950,25 @@ const docTemplate = `{
                 }
             }
         },
-        "routes.LoginRequest": {
+        "routes.CreateSceneRequest": {
             "type": "object",
             "required": [
-                "email",
-                "password"
+                "youtube_url"
             ],
             "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
+                "youtube_url": {
                     "type": "string"
                 }
             }
         },
-        "routes.PreviewTransactionRequest": {
+        "routes.CreateTransactionRequest": {
             "type": "object",
             "required": [
-                "bank_account_id",
+                "payment_method",
                 "subscription_plan_id"
             ],
             "properties": {
-                "bank_account_id": {
+                "payment_method": {
                     "type": "string"
                 },
                 "subscription_plan_id": {
@@ -2211,24 +1976,55 @@ const docTemplate = `{
                 }
             }
         },
-        "routes.RegisterRequest": {
+        "routes.LoginRequest": {
             "type": "object",
             "required": [
-                "email",
-                "password",
-                "username"
+                "email"
             ],
             "properties": {
                 "email": {
                     "type": "string"
+                }
+            }
+        },
+        "routes.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "routes.ReorderPlanItem": {
+            "type": "object",
+            "required": [
+                "id",
+                "sort_order"
+            ],
+            "properties": {
+                "id": {
+                    "type": "string"
                 },
-                "password": {
-                    "type": "string",
-                    "minLength": 6
-                },
-                "username": {
-                    "type": "string",
-                    "minLength": 3
+                "sort_order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "routes.ReorderPlansRequest": {
+            "type": "object",
+            "required": [
+                "plans"
+            ],
+            "properties": {
+                "plans": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/routes.ReorderPlanItem"
+                    }
                 }
             }
         },
@@ -2265,26 +2061,6 @@ const docTemplate = `{
                 },
                 "reason": {
                     "type": "string"
-                }
-            }
-        },
-        "routes.UpdateBankAccountRequest": {
-            "type": "object",
-            "properties": {
-                "account_name": {
-                    "type": "string"
-                },
-                "account_number": {
-                    "type": "string"
-                },
-                "bank_name": {
-                    "type": "string"
-                },
-                "icon": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
                 }
             }
         },
@@ -2357,22 +2133,10 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "enum": [
-                        "paid",
-                        "expired",
-                        "cancelled"
+                        "success",
+                        "failed",
+                        "cancel"
                     ]
-                }
-            }
-        },
-        "routes.UpdateUsernameRequest": {
-            "type": "object",
-            "required": [
-                "username"
-            ],
-            "properties": {
-                "username": {
-                    "type": "string",
-                    "minLength": 3
                 }
             }
         },
@@ -2394,9 +2158,6 @@ const docTemplate = `{
                 "role": {
                     "type": "string"
                 },
-                "username": {
-                    "type": "string"
-                },
                 "warning_message": {
                     "type": "string"
                 }
@@ -2409,6 +2170,21 @@ const docTemplate = `{
             ],
             "properties": {
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "routes.VerifyOTPRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "otp"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "otp": {
                     "type": "string"
                 }
             }

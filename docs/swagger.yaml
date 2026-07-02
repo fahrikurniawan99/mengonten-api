@@ -1,46 +1,10 @@
 definitions:
-  routes.AdminReviewRequest:
-    properties:
-      admin_notes:
-        type: string
-      refund_amount:
-        type: number
-      status:
-        enum:
-        - confirmed
-        - rejected
-        type: string
-    required:
-    - status
-    type: object
   routes.AuthResponse:
     properties:
       token:
         type: string
       user:
         $ref: '#/definitions/routes.UserResponse'
-    type: object
-  routes.ConfirmTransactionRequest:
-    properties:
-      reference_id:
-        type: string
-    required:
-    - reference_id
-    type: object
-  routes.CreateBankAccountRequest:
-    properties:
-      account_name:
-        type: string
-      account_number:
-        type: string
-      bank_name:
-        type: string
-      icon:
-        type: string
-    required:
-    - account_name
-    - account_number
-    - bank_name
     type: object
   routes.CreatePlanRequest:
     properties:
@@ -55,7 +19,10 @@ definitions:
       duration_days:
         type: integer
       final_price:
+        minimum: 0
         type: number
+      is_active:
+        type: boolean
       name:
         type: string
       sort_order:
@@ -65,7 +32,6 @@ definitions:
     required:
     - benefits
     - duration_days
-    - final_price
     - name
     - type
     type: object
@@ -81,40 +47,56 @@ definitions:
     - rule_key
     - rule_value
     type: object
-  routes.LoginRequest:
+  routes.CreateSceneRequest:
     properties:
-      email:
-        type: string
-      password:
+      youtube_url:
         type: string
     required:
-    - email
-    - password
+    - youtube_url
     type: object
-  routes.PreviewTransactionRequest:
+  routes.CreateTransactionRequest:
     properties:
-      bank_account_id:
+      payment_method:
         type: string
       subscription_plan_id:
         type: string
     required:
-    - bank_account_id
+    - payment_method
     - subscription_plan_id
+    type: object
+  routes.LoginRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
     type: object
   routes.RegisterRequest:
     properties:
       email:
         type: string
-      password:
-        minLength: 6
-        type: string
-      username:
-        minLength: 3
-        type: string
     required:
     - email
-    - password
-    - username
+    type: object
+  routes.ReorderPlanItem:
+    properties:
+      id:
+        type: string
+      sort_order:
+        type: integer
+    required:
+    - id
+    - sort_order
+    type: object
+  routes.ReorderPlansRequest:
+    properties:
+      plans:
+        items:
+          $ref: '#/definitions/routes.ReorderPlanItem'
+        minItems: 1
+        type: array
+    required:
+    - plans
     type: object
   routes.ResendVerificationRequest:
     properties:
@@ -138,19 +120,6 @@ definitions:
         type: string
     required:
     - reason
-    type: object
-  routes.UpdateBankAccountRequest:
-    properties:
-      account_name:
-        type: string
-      account_number:
-        type: string
-      bank_name:
-        type: string
-      icon:
-        type: string
-      is_active:
-        type: boolean
     type: object
   routes.UpdatePlanRequest:
     properties:
@@ -196,20 +165,12 @@ definitions:
     properties:
       status:
         enum:
-        - paid
-        - expired
-        - cancelled
+        - success
+        - failed
+        - cancel
         type: string
     required:
     - status
-    type: object
-  routes.UpdateUsernameRequest:
-    properties:
-      username:
-        minLength: 3
-        type: string
-    required:
-    - username
     type: object
   routes.UserResponse:
     properties:
@@ -223,8 +184,6 @@ definitions:
         type: boolean
       role:
         type: string
-      username:
-        type: string
       warning_message:
         type: string
     type: object
@@ -234,6 +193,16 @@ definitions:
         type: string
     required:
     - token
+    type: object
+  routes.VerifyOTPRequest:
+    properties:
+      email:
+        type: string
+      otp:
+        type: string
+    required:
+    - email
+    - otp
     type: object
   routes.WarnRequest:
     properties:
@@ -286,15 +255,28 @@ paths:
       - Bank Account
     post:
       consumes:
-      - application/json
-      description: Tambah rekening bank baru - admin only
+      - multipart/form-data
+      description: Tambah rekening bank baru + upload icon - admin only
       parameters:
-      - description: Bank account data
-        in: body
-        name: request
+      - description: Nama bank
+        in: formData
+        name: bank_name
         required: true
-        schema:
-          $ref: '#/definitions/routes.CreateBankAccountRequest'
+        type: string
+      - description: Nomor rekening
+        in: formData
+        name: account_number
+        required: true
+        type: string
+      - description: Atas nama
+        in: formData
+        name: account_name
+        required: true
+        type: string
+      - description: Icon bank
+        in: formData
+        name: icon
+        type: file
       produces:
       - application/json
       responses:
@@ -309,7 +291,7 @@ paths:
       - Bank Account
   /api/admin/bank-accounts/{account_id}:
     delete:
-      description: Hapus rekening bank - admin only
+      description: Hapus rekening bank + icon - admin only
       parameters:
       - description: Account ID
         in: path
@@ -330,20 +312,34 @@ paths:
       - Bank Account
     put:
       consumes:
-      - application/json
-      description: Update rekening bank - admin only
+      - multipart/form-data
+      description: Update rekening bank + ganti icon - admin only
       parameters:
       - description: Account ID
         in: path
         name: account_id
         required: true
         type: string
-      - description: Update data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/routes.UpdateBankAccountRequest'
+      - description: Nama bank
+        in: formData
+        name: bank_name
+        type: string
+      - description: Nomor rekening
+        in: formData
+        name: account_number
+        type: string
+      - description: Atas nama
+        in: formData
+        name: account_name
+        type: string
+      - description: Icon bank (ganti)
+        in: formData
+        name: icon
+        type: file
+      - description: Aktif/nonaktif (true/false)
+        in: formData
+        name: is_active
+        type: string
       produces:
       - application/json
       responses:
@@ -356,109 +352,6 @@ paths:
       summary: Update bank account (admin)
       tags:
       - Bank Account
-  /api/admin/payment-proofs:
-    get:
-      description: List semua bukti transfer - admin only
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment proofs list
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Get all payment proofs (admin)
-      tags:
-      - Admin Payment Proof
-  /api/admin/payment-proofs/{proof_id}:
-    get:
-      description: Detail bukti transfer - admin only
-      parameters:
-      - description: Payment Proof ID
-        in: path
-        name: proof_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment proof detail
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Get payment proof detail (admin)
-      tags:
-      - Admin Payment Proof
-  /api/admin/payment-proofs/{proof_id}/confirm-overpaid:
-    put:
-      consumes:
-      - multipart/form-data
-      description: Konfirmasi bukti transfer dengan nominal kelebihan + upload bukti
-        refund
-      parameters:
-      - description: Payment Proof ID
-        in: path
-        name: proof_id
-        required: true
-        type: string
-      - description: Catatan admin
-        in: formData
-        name: admin_notes
-        required: true
-        type: string
-      - description: Jumlah refund
-        in: formData
-        name: refund_amount
-        required: true
-        type: number
-      - description: Bukti pengembalian dana
-        in: formData
-        name: refund_proof
-        type: file
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Overpaid confirmed
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Confirm overpaid payment proof (admin)
-      tags:
-      - Admin Payment Proof
-  /api/admin/payment-proofs/{proof_id}/review:
-    put:
-      consumes:
-      - application/json
-      description: Konfirmasi atau tolak bukti transfer
-      parameters:
-      - description: Payment Proof ID
-        in: path
-        name: proof_id
-        required: true
-        type: string
-      - description: Review result
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/routes.AdminReviewRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Review result
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Confirm or reject payment proof (admin)
-      tags:
-      - Admin Payment Proof
   /api/admin/rules/{rule_id}:
     delete:
       description: Hapus rule dari subscription plan
@@ -648,6 +541,30 @@ paths:
       summary: Create rule for a plan (admin)
       tags:
       - Subscription Rule
+  /api/admin/subscription-plans/reorder:
+    put:
+      consumes:
+      - application/json
+      description: Ubah urutan plans - admin only
+      parameters:
+      - description: Reorder data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.ReorderPlansRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Plans reordered
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Reorder subscription plans (admin)
+      tags:
+      - Subscription Plan
   /api/admin/transactions:
     get:
       description: List semua transaksi - admin only
@@ -667,8 +584,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update status transaksi - admin only. Jika paid, otomatis buat
-        subscription
+      description: Update status transaksi - admin only
       parameters:
       - description: Transaction ID
         in: path
@@ -932,9 +848,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Login khusus admin - hanya user dengan role admin
+      description: Kirim kode OTP ke email admin untuk login
       parameters:
-      - description: Admin credentials
+      - description: Email
         in: body
         name: request
         required: true
@@ -944,36 +860,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: Admin login successful
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/routes.AuthResponse'
-              type: object
-        "400":
-          description: Invalid request format
+          description: OTP sent
           schema:
             $ref: '#/definitions/utils.Response'
-        "401":
-          description: Invalid email or password
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "403":
-          description: Access denied - admin only
-          schema:
-            $ref: '#/definitions/utils.Response'
-      summary: Admin login
+      summary: Admin login (send OTP)
       tags:
       - Auth
   /api/auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticate user with email and password, returns JWT token
+      description: Kirim kode OTP ke email untuk login
       parameters:
-      - description: Login credentials
+      - description: Email
         in: body
         name: request
         required: true
@@ -983,32 +882,15 @@ paths:
       - application/json
       responses:
         "200":
-          description: Login successful
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/routes.AuthResponse'
-              type: object
-        "400":
-          description: Invalid request format
+          description: OTP sent
           schema:
             $ref: '#/definitions/utils.Response'
-        "401":
-          description: Invalid email or password
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Server error
-          schema:
-            $ref: '#/definitions/utils.Response'
-      summary: User login
+      summary: User login (send OTP)
       tags:
       - Auth
   /api/auth/logout:
     post:
-      description: Logout user (clears session)
+      description: Logout user
       responses:
         "200":
           description: Logout successful
@@ -1021,9 +903,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create new user account with email, username, and password
+      description: Daftar dengan email, kirim verifikasi email
       parameters:
-      - description: Registration data
+      - description: Email
         in: body
         name: request
         required: true
@@ -1033,24 +915,7 @@ paths:
       - application/json
       responses:
         "201":
-          description: User registered successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/routes.AuthResponse'
-              type: object
-        "400":
-          description: Invalid request format
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "409":
-          description: Email or username already exists
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "500":
-          description: Server error
+          description: Registration email sent
           schema:
             $ref: '#/definitions/utils.Response'
       summary: Register new user
@@ -1060,7 +925,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Kirim ulang email verifikasi (cooldown 5 menit)
+      description: Kirim ulang email verifikasi
       parameters:
       - description: Email address
         in: body
@@ -1075,14 +940,6 @@ paths:
           description: Verification email sent
           schema:
             $ref: '#/definitions/utils.Response'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "429":
-          description: Rate limited - cooldown active
-          schema:
-            $ref: '#/definitions/utils.Response'
       summary: Resend verification email
       tags:
       - Auth
@@ -1090,7 +947,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Verify user email dengan token dari email
+      description: Verifikasi email dan auto-login
       parameters:
       - description: Verification token
         in: body
@@ -1102,14 +959,42 @@ paths:
       - application/json
       responses:
         "200":
-          description: Email verified successfully
+          description: Email verified
           schema:
-            $ref: '#/definitions/utils.Response'
-        "400":
-          description: Invalid or expired token
-          schema:
-            $ref: '#/definitions/utils.Response'
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.AuthResponse'
+              type: object
       summary: Verify email address
+      tags:
+      - Auth
+  /api/auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Masukkan kode OTP untuk login
+      parameters:
+      - description: Email & OTP
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/utils.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/routes.AuthResponse'
+              type: object
+      summary: Verify OTP
       tags:
       - Auth
   /api/bank-accounts:
@@ -1125,9 +1010,39 @@ paths:
       summary: Get active bank accounts (public)
       tags:
       - Bank Account
+  /api/orders:
+    get:
+      description: List semua order/langganan milik user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: My orders
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get my orders (user)
+      tags:
+      - Order
+  /api/orders/subscription:
+    get:
+      description: Cek langganan aktif + rules + usage
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Subscription status
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Check active subscription
+      tags:
+      - Order
   /api/profile:
     get:
-      description: Retrieve authenticated user profile information
+      description: Ambil profil user yang sedang login
       produces:
       - application/json
       responses:
@@ -1140,54 +1055,9 @@ paths:
                 data:
                   $ref: '#/definitions/routes.UserResponse'
               type: object
-        "401":
-          description: User not authenticated
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "404":
-          description: User not found
-          schema:
-            $ref: '#/definitions/utils.Response'
       security:
       - Bearer: []
       summary: Get user profile
-      tags:
-      - Auth
-  /api/profile/username:
-    put:
-      consumes:
-      - application/json
-      description: Update authenticated user's username
-      parameters:
-      - description: New username
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/routes.UpdateUsernameRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Username updated
-          schema:
-            allOf:
-            - $ref: '#/definitions/utils.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/routes.UserResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "409":
-          description: Username already taken
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Update username
       tags:
       - Auth
   /api/subscription-plans:
@@ -1203,51 +1073,25 @@ paths:
       summary: Get active subscription plans (public)
       tags:
       - Subscription Plan
-  /api/subscription/check:
+  /api/subscription-plans/{plan_id}:
     get:
-      description: Cek apakah user masih punya langganan aktif
+      description: Detail subscription plan
+      parameters:
+      - description: Plan ID
+        in: path
+        name: plan_id
+        required: true
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: Subscription status
+          description: Plan detail
           schema:
             $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Check active subscription
+      summary: Get subscription plan by ID (public)
       tags:
-      - Subscription
-  /api/subscription/history:
-    get:
-      description: History langganan yang sudah di-order user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Subscription history
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Get subscription history
-      tags:
-      - Subscription
-  /api/subscription/rules:
-    get:
-      description: Cek rules dan usage dari langganan aktif user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Active subscription rules + usage
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Get my active subscription rules
-      tags:
-      - Subscription Rule
+      - Subscription Plan
   /api/transactions:
     get:
       description: List transaksi milik user sendiri
@@ -1263,95 +1107,17 @@ paths:
       summary: Get my transactions (user)
       tags:
       - Transaction
-  /api/transactions/{transaction_id}/payment-proof:
-    get:
-      description: Lihat bukti transfer milik user sendiri
-      parameters:
-      - description: Transaction ID
-        in: path
-        name: transaction_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment proof
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Get my payment proof (user)
-      tags:
-      - Payment Proof
-    post:
-      consumes:
-      - multipart/form-data
-      description: Upload foto bukti transfer (max 5) + info transfer
-      parameters:
-      - description: Transaction ID
-        in: path
-        name: transaction_id
-        required: true
-        type: string
-      - description: Atas nama rekening
-        in: formData
-        name: account_name
-        required: true
-        type: string
-      - description: Transfer dari bank
-        in: formData
-        name: source_bank
-        required: true
-        type: string
-      - description: Nomor rekening pengirim
-        in: formData
-        name: source_account_number
-        type: string
-      - collectionFormat: csv
-        description: Foto bukti transfer (max 5)
-        in: formData
-        items:
-          type: file
-        name: photos
-        required: true
-        type: array
-      - collectionFormat: csv
-        description: Deskripsi per foto
-        in: formData
-        items:
-          type: string
-        name: descriptions
-        required: true
-        type: array
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Payment proof uploaded
-          schema:
-            $ref: '#/definitions/utils.Response'
-        "400":
-          description: Invalid request
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Upload bukti transfer (user)
-      tags:
-      - Payment Proof
-  /api/transactions/confirm:
     post:
       consumes:
       - application/json
-      description: Konfirmasi preview → buat transaction
+      description: Buat transaksi baru + redirect ke Duitku payment page
       parameters:
-      - description: Preview reference_id
+      - description: Plan ID
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/routes.ConfirmTransactionRequest'
+          $ref: '#/definitions/routes.CreateTransactionRequest'
       produces:
       - application/json
       responses:
@@ -1361,52 +1127,28 @@ paths:
             $ref: '#/definitions/utils.Response'
       security:
       - Bearer: []
-      summary: Confirm payment preview (user)
+      summary: Create transaction (user)
       tags:
       - Transaction
-  /api/transactions/preview:
-    post:
-      consumes:
-      - application/json
-      description: Generate preview pembayaran dengan unique code (berlaku 15 menit)
-      parameters:
-      - description: Preview data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/routes.PreviewTransactionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment preview
-          schema:
-            $ref: '#/definitions/utils.Response'
-      security:
-      - Bearer: []
-      summary: Generate payment preview (user)
-      tags:
-      - Transaction
-  /api/transactions/preview/{reference_id}:
+  /api/transactions/{transaction_id}:
     get:
-      description: Cek apakah preview masih valid
+      description: Lihat detail transaksi milik user sendiri
       parameters:
-      - description: Preview Reference ID
+      - description: Transaction ID
         in: path
-        name: reference_id
+        name: transaction_id
         required: true
         type: string
       produces:
       - application/json
       responses:
         "200":
-          description: Preview status
+          description: Transaction detail
           schema:
             $ref: '#/definitions/utils.Response'
       security:
       - Bearer: []
-      summary: Check preview status (user)
+      summary: Get transaction detail (user)
       tags:
       - Transaction
   /api/youtube:
@@ -1485,6 +1227,99 @@ paths:
       summary: Get processing job status
       tags:
       - YouTube
+  /api/youtube/metadata:
+    get:
+      description: Ambil title, duration, thumbnail, tags, is_live dari URL YouTube
+      parameters:
+      - description: YouTube video URL
+        in: query
+        name: url
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Metadata retrieved
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get YouTube video metadata
+      tags:
+      - YouTube
+  /api/youtube/scenes:
+    get:
+      description: List semua scene jobs milik user dengan pagination
+      parameters:
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Items per page (default 20)
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status (pending/processing/completed/failed)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Jobs list
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: List scene jobs (user)
+      tags:
+      - Scene
+    post:
+      consumes:
+      - application/json
+      description: Submit YouTube URL untuk di-analyze jadi chapters
+      parameters:
+      - description: YouTube URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.CreateSceneRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Job created
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Create chapter segmentation job
+      tags:
+      - Scene
+  /api/youtube/scenes/{job_id}:
+    get:
+      description: Get job status dan hasil chapters
+      parameters:
+      - description: Job ID
+        in: path
+        name: job_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job status
+          schema:
+            $ref: '#/definitions/utils.Response'
+      security:
+      - Bearer: []
+      summary: Get scene job status
+      tags:
+      - Scene
   /api/youtube/segments/{segment_id}:
     delete:
       description: Delete segment dari database dan Cloudinary
@@ -1543,6 +1378,27 @@ paths:
       summary: Submit YouTube video untuk auto-clipping
       tags:
       - YouTube
+  /callback/pakasir:
+    post:
+      consumes:
+      - application/json
+      description: Webhook dari Pakasir untuk update status transaksi
+      parameters:
+      - description: Callback params
+        in: body
+        name: request
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Callback processed
+          schema:
+            $ref: '#/definitions/utils.Response'
+      summary: Pakasir payment callback
+      tags:
+      - Transaction
 securityDefinitions:
   Bearer:
     in: header

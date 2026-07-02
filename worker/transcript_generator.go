@@ -111,7 +111,6 @@ func (tg *TranscriptGenerator) extractAudio(videoPath, audioPath string) error {
 func (tg *TranscriptGenerator) compressAudio(inputPath, outputPath string) error {
 	log.Printf("Compressing audio: %s -> %s", inputPath, outputPath)
 
-	// Ensure output directory exists
 	outputDir := filepath.Dir(outputPath)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %v", err)
@@ -119,7 +118,7 @@ func (tg *TranscriptGenerator) compressAudio(inputPath, outputPath string) error
 
 	cmd := exec.Command("ffmpeg",
 		"-i", inputPath,
-		"-b:a", "64k",
+		"-b:a", "32k",
 		"-y",
 		outputPath)
 
@@ -147,7 +146,8 @@ func (tg *TranscriptGenerator) chunkAudio(audioPath string, chunkDurationSeconds
 		"-i", audioPath,
 		"-f", "segment",
 		"-segment_time", fmt.Sprintf("%d", chunkDurationSeconds),
-		"-c", "copy",
+		"-c:a", "libmp3lame",
+		"-b:a", "128k",
 		"-y",
 		chunkPattern)
 

@@ -216,6 +216,12 @@ func ListSceneJobs(db *gorm.DB) gin.HandlerFunc {
 
 func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegmenter, transcriptGen *worker.TranscriptGenerator) {
 	log.Printf("[SceneJob] Starting processing for job %s", jobID.String())
+	tmpDir, err := os.MkdirTemp("", "scene_job_*")
+	if err != nil {
+		log.Printf("[SceneJob] Failed to create temp dir: %v", err)
+		return
+	}
+	defer os.RemoveAll(tmpDir)
 
 	var job models.SceneJob
 	if err := db.First(&job, jobID).Error; err != nil {
@@ -223,7 +229,10 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 		return
 	}
 
-	db.Model(&job).Updates(map[string]interface{}{"status": "processing", "progress": 10})
+	if err := db.Model(&job).Updates(map[string]interface{}{"status": "processing", "progress": 10}).Error; err != nil {
+		log.Printf("[SceneJob] Failed to update job status: %v", err)
+		return
+	}
 
 	metadata, err := worker.ExtractYouTubeMetadata(job.YouTubeURL)
 	if err == nil {
@@ -241,8 +250,8 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	db.Model(&job).Update("progress", 20)
 
-	downloader := worker.NewYouTubeDownloader("/tmp/yt-scenes")
-	audioPath := "/tmp/yt-scenes/audio.mp3"
+	downloader := worker.NewYouTubeDownloader(tmpDir)
+	audioPath := tmpDir + "/audio.mp3"
 
 	if err := downloader.Download(job.YouTubeURL, audioPath); err != nil {
 		log.Printf("[SceneJob] Download failed: %v", err)
@@ -255,38 +264,48 @@ func processSceneJob(db *gorm.DB, jobID uuid.UUID, segmenter *worker.ChapterSegm
 
 	db.Model(&job).Update("progress", 40)
 
-	txnCtx, txnCancel := context.WithTimeout(context.Background(), 3*time.Minute)
-	transcript, err := transcriptGen.GenerateTranscriptChunked(txnCtx, audioPath)
-	txnCancel()
-	if err != nil {
-		log.Printf("[SceneJob] Transcription failed: %v", err)
-		db.Model(&job).Updates(map[string]interface{}{
-			"status": "failed",
-			"error":  "Transcription failed: " + err.Error(),
-		})
-		return
-	}
+	fmt.Println("Starting transcription...")
 
-	db.Model(&job).Updates(map[string]interface{}{"transcript": transcript, "progress": 60})
+	// txnCtx, txnCancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	// transcript, err := transcriptGen.GenerateTranscriptChunked(txnCtx, audioPath)
+	// txnCancel()
+	// if err != nil {
+	// 	log.Printf("[SceneJob] Transcription failed: %v", err)
+	// 	db.Model(&job).Updates(map[string]interface{}{
+	// 		"status": "failed",
+	// 		"error":  "Transcription failed: " + err.Error(),
+	// 	})
+	// 	return
+	// }
 
-	groqCtx, groqCancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	chapters, err := segmenter.SegmentChapters(groqCtx, transcript)
-	groqCancel()
-	if err != nil {
-		log.Printf("[SceneJob] Segmentation failed: %v", err)
-		db.Model(&job).Updates(map[string]interface{}{
-			"status": "failed",
-			"error":  "Segmentation failed: " + err.Error(),
-		})
-		return
-	}
+	// db.Model(&job).Updates(map[string]interface{}{"transcript": transcript, "progress": 60})
 
-	chaptersJSON, _ := json.Marshal(chapters)
-	db.Model(&job).Updates(map[string]interface{}{
-		"chapters": driver.Value(chaptersJSON),
-		"status":   "completed",
-		"progress": 100,
-	})
+	// groqCtx, groqCancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// chapters, err := segmenter.SegmentChapters(groqCtx, transcript)
+	// groqCancel()
+	// if err != nil {
+	// 	log.Printf("[SceneJob] Segmentation failed: %v", err)
+	// 	db.Model(&job).Updates(map[string]interface{}{
+	// 		"status": "failed",
+	// 		"error":  "Segmentation failed: " + err.Error(),
+	// 	})
+	// 	return
+	// }
 
-	log.Printf("[SceneJob] Completed: %d chapters generated", len(chapters))
+	// chaptersJSON, err := json.Marshal(chapters)
+	// if err != nil {
+	// 	log.Printf("[SceneJob] Failed to marshal chapters: %v", err)
+	// 	db.Model(&job).Updates(map[string]interface{}{
+	// 		"status": "failed",
+	// 		"error":  "Failed to marshal chapters: " + err.Error(),
+	// 	})
+	// 	return
+	// }
+	// db.Model(&job).Updates(map[string]interface{}{
+	// 	"chapters": driver.Value(chaptersJSON),
+	// 	"status":   "completed",
+	// 	"progress": 100,
+	// })
+
+	// log.Printf("[SceneJob] Completed: %d chapters generated", len(chapters))
 }

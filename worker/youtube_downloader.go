@@ -29,6 +29,7 @@ func (yd *YouTubeDownloader) Download(youtubeURL, outputPath string) error {
 
 	cmd := exec.CommandContext(ctx, "yt-dlp",
 		"--extractor-args", "youtube:player_client=android,web",
+		"--impersonate-client", "chrome",
 		"--audio-format", "mp3",
 		"-o", outputPath,
 		youtubeURL)

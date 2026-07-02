@@ -8,10 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"mengonten-api/config"
 	"mengonten-api/models"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type YouTubeProcessor struct {
